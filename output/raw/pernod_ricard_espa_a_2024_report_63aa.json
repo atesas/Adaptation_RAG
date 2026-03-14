@@ -1,0 +1,181 @@
+{
+  "Q0": {
+    "is_relevant": true,
+    "document_type": "sustainability report",
+    "climate_sections": [
+      "Identificación y gestión de riesgos",
+      "Evaluación de impactos, riesgos y oportunidades",
+      "Gestión de los temas materiales"
+    ],
+    "confidence": 1.0,
+    "skip_further_extraction": false
+  },
+  "Q1": {
+    "company_name": "Pernod Ricard España",
+    "report_title": "Informe de Sostenibilidad",
+    "publication_year": 2024,
+    "reporting_period": "fiscal 2024",
+    "report_type": "sustainability report",
+    "source_pages": [
+      109,
+      27,
+      136
+    ]
+  },
+  "Q2": {
+    "frameworks_referenced": [
+      "EFRAG",
+      "EU CSRD"
+    ],
+    "climate_sections": [
+      {
+        "section_name": "Identificación y gestión de riesgos",
+        "page_range": "136-136"
+      },
+      {
+        "section_name": "Evaluación de impactos, riesgos y oportunidades",
+        "page_range": "27-27"
+      }
+    ],
+    "tcfd_alignment_claimed": false,
+    "external_assurance": false,
+    "source_pages": [
+      25,
+      37,
+      169
+    ]
+  },
+  "Q3": {
+    "operations_coverage_pct": "not specified",
+    "supply_chain_coverage_pct": "not specified",
+    "geographies_covered": [],
+    "business_units_covered": [],
+    "assessment_methodology": "not specified",
+    "source_pages": [
+      138,
+      27,
+      136
+    ]
+  },
+  "Q5": {
+    "scenarios_used": [],
+    "temperature_pathways": [],
+    "time_horizons": [],
+    "methodology_described": false,
+    "scenario_analysis_scope": "not specified",
+    "source_pages": []
+  },
+  "Q10": {
+    "materiality_assessment": {
+      "methodology": "not specified",
+      "criteria_used": [],
+      "material_risks_identified": [],
+      "non_material_risks": [],
+      "source_pages": [
+        25,
+        37,
+        169
+      ]
+    }
+  },
+  "Q4": {
+    "hazards": []
+  },
+  "Q12": {
+    "location_specific_risks": []
+  },
+  "Q6": {
+    "vulnerable_assets": []
+  },
+  "Q7": {
+    "supply_chain_risks": []
+  },
+  "Q8": {
+    "identified_risks": []
+  },
+  "Q9": {
+    "vulnerabilities": []
+  },
+  "Q11": {
+    "cost_estimates": []
+  },
+  "Q18": {
+    "financial_disclosure": {
+      "capex_disclosed": false,
+      "adaptation_investment_amount": "",
+      "currency": "",
+      "time_period": "",
+      "allocation_breakdown": [],
+      "percentage_of_total_capex": "",
+      "source_page": 0
+    }
+  },
+  "Q23": {
+    "financial_impact_disclosed": false,
+    "quantified_impacts": [],
+    "insurance_or_risk_transfer": {
+      "description": "",
+      "cost_if_disclosed": ""
+    }
+  },
+  "Q13": {
+    "risk_adaptation_linkage": [],
+    "source_page": 0
+  },
+  "Q14": {
+    "implemented_measures": [],
+    "source_page": 0
+  },
+  "Q15": {
+    "resilience_programs": [],
+    "source_page": 0
+  },
+  "Q16": {
+    "nature_based_solutions": [],
+    "source_page": 0
+  },
+  "Q17": {
+    "innovation_initiatives": [],
+    "source_page": 0
+  },
+  "Q22": {
+    "adaptation_metrics": [],
+    "source_page": 0
+  },
+  "Q19": {
+    "board_oversight": {
+      "responsible_committee": "Comité de Dirección",
+      "meeting_frequency": "periódica",
+      "climate_expertise_on_board": "Director General y directores de áreas"
+    },
+    "executive_responsibility": {
+      "role_or_title": "Director Financiero",
+      "name_if_disclosed": ""
+    },
+    "climate_committees_or_teams": [],
+    "source_pages": [
+      136
+    ]
+  },
+  "Q20": {
+    "integration_areas": [],
+    "business_continuity_measures": "Identificación y gestión de los riesgos financieros y no financieros, incluyendo los riesgos de sostenibilidad.",
+    "procurement_or_sourcing_changes": "Inclusión de criterios ESG en la contratación y auditoría a proveedores.",
+    "site_selection_criteria": "",
+    "strategic_examples": [],
+    "source_pages": [
+      37
+    ]
+  },
+  "Q21": {
+    "stakeholders_engaged": [
+      {
+        "stakeholder_type": "proveedores",
+        "engagement_activity": "Compra a proveedores locales",
+        "purpose_or_focus": "Reconocimiento al compromiso con la compra a proveedores locales",
+        "geographic_focus": "",
+        "source_page": 37
+      }
+    ]
+  }
+}

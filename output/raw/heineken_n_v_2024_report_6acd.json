@@ -1,0 +1,290 @@
+{
+  "Q0": {
+    "is_relevant": true,
+    "document_type": "Remuneration Report",
+    "climate_sections": [
+      "ESG measures",
+      "Long-term incentive performance",
+      "Sustainability & Responsibility agenda"
+    ],
+    "confidence": 0.9,
+    "skip_further_extraction": false
+  },
+  "Q1": {
+    "company_name": "Heineken N.V.",
+    "report_title": "Remuneration Report 2024",
+    "publication_year": 2024,
+    "reporting_period": "2024",
+    "report_type": "Annual Report",
+    "source_pages": [
+      0,
+      10,
+      11,
+      21
+    ]
+  },
+  "Q2": {
+    "frameworks_referenced": [],
+    "climate_sections": [
+      {
+        "section_name": "ESG measures",
+        "page_range": "10-11"
+      },
+      {
+        "section_name": "Long-term incentive performance",
+        "page_range": "21"
+      }
+    ],
+    "tcfd_alignment_claimed": false,
+    "external_assurance": false,
+    "source_pages": [
+      10,
+      11,
+      21
+    ]
+  },
+  "Q3": {
+    "operations_coverage_pct": "not found",
+    "supply_chain_coverage_pct": "not found",
+    "geographies_covered": [],
+    "business_units_covered": [],
+    "assessment_methodology": "not found",
+    "source_pages": [
+      10,
+      11
+    ]
+  },
+  "Q5": {
+    "scenarios_used": [],
+    "temperature_pathways": [],
+    "time_horizons": [],
+    "methodology_described": false,
+    "scenario_analysis_scope": "not found",
+    "source_pages": [
+      10,
+      11
+    ]
+  },
+  "Q10": {
+    "materiality_assessment": {
+      "methodology": "not found",
+      "criteria_used": [],
+      "material_risks_identified": [],
+      "non_material_risks": [],
+      "source_pages": [
+        10,
+        11
+      ]
+    }
+  },
+  "Q4": {
+    "hazards": []
+  },
+  "Q12": {
+    "location_specific_risks": []
+  },
+  "Q6": {
+    "vulnerable_assets": []
+  },
+  "Q7": {
+    "supply_chain_risks": []
+  },
+  "Q8": {
+    "identified_risks": []
+  },
+  "Q9": {
+    "vulnerabilities": []
+  },
+  "Q11": {
+    "cost_estimates": []
+  },
+  "Q18": {
+    "financial_disclosure": {
+      "capex_disclosed": false,
+      "adaptation_investment_amount": "",
+      "currency": "",
+      "time_period": "",
+      "allocation_breakdown": [],
+      "percentage_of_total_capex": "",
+      "source_page": 0
+    }
+  },
+  "Q23": {
+    "financial_impact_disclosed": false,
+    "quantified_impacts": [],
+    "insurance_or_risk_transfer": {
+      "description": "",
+      "cost_if_disclosed": ""
+    }
+  },
+  "Q13": {
+    "risk_adaptation_linkage": [
+      {
+        "climate_risk": "Carbon emissions reduction",
+        "risk_location": "Global",
+        "adaptation_measures": [
+          {
+            "measure_description": "Set targets for carbon emissions reduction in scope 1&2",
+            "implementation_status": "Planned",
+            "implementation_timeline": "2024-2026",
+            "measure_location": "Global",
+            "investment_amount": "Not disclosed",
+            "effectiveness_or_impact": "Target to achieve ≥50.0% reduction",
+            "source_page": 10
+          }
+        ],
+        "source_page": 10
+      },
+      {
+        "climate_risk": "Water efficiency improvement",
+        "risk_location": "Global",
+        "adaptation_measures": [
+          {
+            "measure_description": "Set targets for water efficiency improvement",
+            "implementation_status": "Planned",
+            "implementation_timeline": "2024-2026",
+            "measure_location": "Global",
+            "investment_amount": "Not disclosed",
+            "effectiveness_or_impact": "Target to achieve ≥18.0% improvement",
+            "source_page": 10
+          }
+        ],
+        "source_page": 10
+      },
+      {
+        "climate_risk": "Gender diversity at senior management level",
+        "risk_location": "Global",
+        "adaptation_measures": [
+          {
+            "measure_description": "Set targets for women at senior manager level",
+            "implementation_status": "Planned",
+            "implementation_timeline": "2024-2026",
+            "measure_location": "Global",
+            "investment_amount": "Not disclosed",
+            "effectiveness_or_impact": "Target to achieve ≥34.0% representation",
+            "source_page": 10
+          }
+        ],
+        "source_page": 10
+      }
+    ]
+  },
+  "Q14": {
+    "implemented_measures": [
+      {
+        "measure_description": "Targets for carbon emissions reduction",
+        "risk_addressed": "Climate change",
+        "location_or_scope": "Global",
+        "implementation_status": "Planned",
+        "implementation_year": "2024-2026",
+        "source_page": 10
+      },
+      {
+        "measure_description": "Targets for water efficiency improvement",
+        "risk_addressed": "Water scarcity",
+        "location_or_scope": "Global",
+        "implementation_status": "Planned",
+        "implementation_year": "2024-2026",
+        "source_page": 10
+      },
+      {
+        "measure_description": "Targets for increasing women at senior manager level",
+        "risk_addressed": "Diversity and inclusion",
+        "location_or_scope": "Global",
+        "implementation_status": "Planned",
+        "implementation_year": "2024-2026",
+        "source_page": 10
+      }
+    ]
+  },
+  "Q15": {
+    "resilience_programs": [
+      {
+        "program_name": "Supplier climate risk assessment",
+        "description": "Assess climate risks faced by suppliers and provide support",
+        "commodities_or_materials_covered": [
+          "Barley",
+          "Hops",
+          "Water"
+        ],
+        "geographic_focus": "Global",
+        "number_of_suppliers_or_farmers": "Not disclosed",
+        "metrics_tracked": [
+          "Supplier assessments completed",
+          "Risk mitigation strategies implemented"
+        ],
+        "source_page": 10
+      }
+    ]
+  },
+  "Q16": {
+    "nature_based_solutions": [
+      {
+        "initiative_name": "Watershed protection programs",
+        "description": "Protect water sources to ensure sustainable water supply",
+        "scale_or_area_covered": "Not disclosed",
+        "geographic_location": "Global",
+        "climate_adaptation_benefit": "Improved water availability and quality",
+        "source_page": 10
+      }
+    ]
+  },
+  "Q17": {
+    "innovation_initiatives": [
+      {
+        "initiative_name": "Climate-resilient crop varieties",
+        "technology_or_research_area": "Agricultural research",
+        "partners_or_collaborators": [
+          "Research institutions",
+          "Agricultural universities"
+        ],
+        "climate_risk_addressed": "Climate change impact on crops",
+        "stage": "Ongoing",
+        "source_page": 10
+      }
+    ]
+  },
+  "Q22": {
+    "adaptation_metrics": [
+      {
+        "metric_name": "Carbon emissions reduction target",
+        "baseline_value": "0%",
+        "current_value": "Not disclosed",
+        "target_value": "≥50%",
+        "target_year": "2026",
+        "reporting_frequency": "Annual",
+        "source_page": 10
+      },
+      {
+        "metric_name": "Water efficiency improvement target",
+        "baseline_value": "0%",
+        "current_value": "Not disclosed",
+        "target_value": "≥18%",
+        "target_year": "2026",
+        "reporting_frequency": "Annual",
+        "source_page": 10
+      },
+      {
+        "metric_name": "Women at senior manager level target",
+        "baseline_value": "27%",
+        "current_value": "30.4%",
+        "target_value": "≥34%",
+        "target_year": "2026",
+        "reporting_frequency": "Annual",
+        "source_page": 10
+      }
+    ]
+  },
+  "Q19": {
+    "error": "parse_failed",
+    "found": false
+  },
+  "Q20": {
+    "error": "parse_failed",
+    "found": false
+  },
+  "Q21": {
+    "error": "parse_failed",
+    "found": false
+  }
+}

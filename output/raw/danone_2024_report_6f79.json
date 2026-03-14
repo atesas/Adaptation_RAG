@@ -1,0 +1,166 @@
+{
+  "Q0": {
+    "is_relevant": true,
+    "document_type": "annual report with climate sections",
+    "climate_sections": [
+      "Sustainability",
+      "Climate-related information"
+    ],
+    "confidence": 0.9,
+    "skip_further_extraction": false
+  },
+  "Q1": {
+    "company_name": "Danone",
+    "report_title": "Danone at a Glance",
+    "publication_year": 2024,
+    "reporting_period": "FY2023",
+    "report_type": "annual report",
+    "source_pages": [
+      0,
+      1,
+      2
+    ]
+  },
+  "Q2": {
+    "frameworks_referenced": [
+      "TCFD",
+      "GRI"
+    ],
+    "climate_sections": [
+      {
+        "section_name": "Sustainability",
+        "page_range": "0-5"
+      }
+    ],
+    "tcfd_alignment_claimed": true,
+    "external_assurance": false,
+    "source_pages": [
+      0,
+      1,
+      2
+    ]
+  },
+  "Q3": {
+    "operations_coverage_pct": "not found",
+    "supply_chain_coverage_pct": "not found",
+    "geographies_covered": [],
+    "business_units_covered": [],
+    "assessment_methodology": "not found",
+    "source_pages": [
+      2
+    ]
+  },
+  "Q5": {
+    "scenarios_used": [],
+    "temperature_pathways": [],
+    "time_horizons": [],
+    "methodology_described": false,
+    "scenario_analysis_scope": "not found",
+    "source_pages": [
+      2
+    ]
+  },
+  "Q10": {
+    "materiality_assessment": {
+      "methodology": "not found",
+      "criteria_used": [],
+      "material_risks_identified": [],
+      "non_material_risks": [],
+      "source_pages": [
+        2
+      ]
+    }
+  },
+  "Q4": {
+    "hazards": []
+  },
+  "Q12": {
+    "location_specific_risks": []
+  },
+  "Q6": {
+    "vulnerable_assets": []
+  },
+  "Q7": {
+    "supply_chain_risks": []
+  },
+  "Q8": {
+    "identified_risks": []
+  },
+  "Q9": {
+    "vulnerabilities": []
+  },
+  "Q11": {
+    "cost_estimates": []
+  },
+  "Q18": {
+    "financial_disclosure": {
+      "capex_disclosed": false,
+      "adaptation_investment_amount": "",
+      "currency": "",
+      "time_period": "",
+      "allocation_breakdown": [],
+      "percentage_of_total_capex": "",
+      "source_page": 0
+    }
+  },
+  "Q23": {
+    "financial_impact_disclosed": false,
+    "quantified_impacts": [],
+    "insurance_or_risk_transfer": {
+      "description": "",
+      "cost_if_disclosed": ""
+    }
+  },
+  "Q13": {
+    "risk_adaptation_linkage": [],
+    "source_page": 0
+  },
+  "Q14": {
+    "implemented_measures": [],
+    "source_page": 0
+  },
+  "Q15": {
+    "resilience_programs": [],
+    "source_page": 0
+  },
+  "Q16": {
+    "nature_based_solutions": [],
+    "source_page": 0
+  },
+  "Q17": {
+    "innovation_initiatives": [],
+    "source_page": 0
+  },
+  "Q22": {
+    "adaptation_metrics": [],
+    "source_page": 0
+  },
+  "Q19": {
+    "board_oversight": {
+      "responsible_committee": "Not disclosed",
+      "meeting_frequency": "Not disclosed",
+      "climate_expertise_on_board": "Not disclosed"
+    },
+    "executive_responsibility": {
+      "role_or_title": "Not disclosed",
+      "name_if_disclosed": "Not disclosed"
+    },
+    "climate_committees_or_teams": [],
+    "source_pages": [
+      2
+    ]
+  },
+  "Q20": {
+    "integration_areas": [],
+    "business_continuity_measures": "Not disclosed",
+    "procurement_or_sourcing_changes": "Not disclosed",
+    "site_selection_criteria": "Not disclosed",
+    "strategic_examples": [],
+    "source_pages": [
+      2
+    ]
+  },
+  "Q21": {
+    "stakeholders_engaged": []
+  }
+}

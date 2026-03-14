@@ -1,0 +1,377 @@
+{
+  "Q0": {
+    "is_relevant": true,
+    "document_type": "Annual report",
+    "climate_sections": [
+      "Water stewardship",
+      "Sustainability targets",
+      "Regenerative agriculture",
+      "Carbon neutrality initiatives"
+    ],
+    "confidence": 0.9,
+    "skip_further_extraction": false
+  },
+  "Q1": {
+    "company_name": "Diageo",
+    "report_title": "Annual report 2023",
+    "publication_year": 2023,
+    "reporting_period": "2022",
+    "report_type": "Annual report",
+    "source_pages": [
+      12
+    ]
+  },
+  "Q2": {
+    "frameworks_referenced": [
+      "CDP Water",
+      "Business Ambition for 1.5°C",
+      "UNFCCC’s Race to Zero",
+      "Race to Resilience"
+    ],
+    "climate_sections": [
+      {
+        "section_name": "Water stewardship",
+        "page_range": "8-9"
+      },
+      {
+        "section_name": "Sustainability targets",
+        "page_range": "9-10"
+      },
+      {
+        "section_name": "Regenerative agriculture",
+        "page_range": "7-8"
+      },
+      {
+        "section_name": "Carbon neutrality initiatives",
+        "page_range": "10-11"
+      }
+    ],
+    "tcfd_alignment_claimed": false,
+    "external_assurance": false,
+    "source_pages": [
+      12
+    ]
+  },
+  "Q3": {
+    "operations_coverage_pct": "not specified",
+    "supply_chain_coverage_pct": "not specified",
+    "geographies_covered": [],
+    "business_units_covered": [],
+    "assessment_methodology": "not specified",
+    "source_pages": [
+      8,
+      9,
+      10
+    ]
+  },
+  "Q5": {
+    "scenarios_used": [],
+    "temperature_pathways": [],
+    "time_horizons": [],
+    "methodology_described": false,
+    "scenario_analysis_scope": "not specified",
+    "source_pages": [
+      8,
+      9,
+      10
+    ]
+  },
+  "Q10": {
+    "materiality_assessment": {
+      "methodology": "not specified",
+      "criteria_used": [],
+      "material_risks_identified": [],
+      "non_material_risks": [],
+      "source_pages": [
+        8,
+        9,
+        10
+      ]
+    }
+  },
+  "Q4": {
+    "hazards": [
+      {
+        "hazard_type": "water stress",
+        "location": "water-stressed areas",
+        "affected_assets": "operations",
+        "time_horizon": "2026",
+        "severity_or_likelihood": "high",
+        "source_page": 8
+      },
+      {
+        "hazard_type": "drought",
+        "location": "water-stressed areas",
+        "affected_assets": "operations",
+        "time_horizon": "2026",
+        "severity_or_likelihood": "high",
+        "source_page": 9
+      },
+      {
+        "hazard_type": "extreme weather events",
+        "location": "catchment areas",
+        "affected_assets": "business resilience",
+        "time_horizon": "not specified",
+        "severity_or_likelihood": "high",
+        "source_page": 9
+      }
+    ]
+  },
+  "Q12": {
+    "location_specific_risks": [
+      {
+        "location_name": "Ireland",
+        "location_type": "country",
+        "climate_risks_identified": [
+          "water stress",
+          "drought"
+        ],
+        "vulnerabilities_identified": [
+          "impact on agricultural practices",
+          "supply chain disruptions"
+        ],
+        "assessment_completed": true,
+        "risk_level": "high",
+        "source_page": 10
+      },
+      {
+        "location_name": "Kildare",
+        "location_type": "facility",
+        "climate_risks_identified": [
+          "extreme weather events"
+        ],
+        "vulnerabilities_identified": [
+          "operational disruptions",
+          "increased energy consumption"
+        ],
+        "assessment_completed": true,
+        "risk_level": "medium",
+        "source_page": 10
+      }
+    ]
+  },
+  "Q6": {
+    "vulnerable_assets": []
+  },
+  "Q7": {
+    "supply_chain_risks": []
+  },
+  "Q8": {
+    "identified_risks": []
+  },
+  "Q9": {
+    "vulnerabilities": []
+  },
+  "Q11": {
+    "cost_estimates": []
+  },
+  "Q18": {
+    "financial_disclosure": {
+      "capex_disclosed": true,
+      "adaptation_investment_amount": "200 million",
+      "currency": "EUR",
+      "time_period": "2022",
+      "allocation_breakdown": [
+        "carbon-neutral brewery",
+        "renewable energy infrastructure"
+      ],
+      "percentage_of_total_capex": "N/A",
+      "source_page": 10
+    }
+  },
+  "Q23": {
+    "financial_impact_disclosed": false,
+    "quantified_impacts": [],
+    "insurance_or_risk_transfer": {
+      "description": "Not disclosed",
+      "cost_if_disclosed": "N/A"
+    }
+  },
+  "Q13": {
+    "risk_adaptation_linkage": [
+      {
+        "climate_risk": "Water crisis",
+        "risk_location": "Water-stressed areas",
+        "adaptation_measures": [
+          {
+            "measure_description": "Reducing water use in operations with a 40% improvement in water use efficiency in water-stressed areas.",
+            "implementation_status": "Ongoing",
+            "implementation_timeline": "By 2030",
+            "measure_location": "Global",
+            "investment_amount": "",
+            "effectiveness_or_impact": "",
+            "source_page": 8
+          },
+          {
+            "measure_description": "Replenishing more water than used for operations in water-stressed areas.",
+            "implementation_status": "Planned",
+            "implementation_timeline": "By 2026",
+            "measure_location": "Water-stressed areas",
+            "investment_amount": "",
+            "effectiveness_or_impact": "",
+            "source_page": 8
+          }
+        ],
+        "source_page": 8
+      }
+    ]
+  },
+  "Q14": {
+    "implemented_measures": [
+      {
+        "measure_description": "Investment in Ireland’s first purpose-built carbon-neutral brewery powered with 100% renewable energy.",
+        "risk_addressed": "Carbon emissions",
+        "location_or_scope": "Kildare, Ireland",
+        "implementation_status": "Ongoing",
+        "implementation_year": "2022",
+        "source_page": 10
+      },
+      {
+        "measure_description": "Reduction of packaging weight by 4.4% and removal of 141 million cartons.",
+        "risk_addressed": "Packaging waste and carbon emissions",
+        "location_or_scope": "Global",
+        "implementation_status": "Completed",
+        "implementation_year": "2023",
+        "source_page": 6
+      }
+    ]
+  },
+  "Q15": {
+    "resilience_programs": [
+      {
+        "program_name": "Regenerative agriculture pilot",
+        "description": "Working with farmers to define regenerative farming practices tailored to local needs.",
+        "commodities_or_materials_covered": [
+          "Barley"
+        ],
+        "geographic_focus": "Ireland",
+        "number_of_suppliers_or_farmers": "45",
+        "metrics_tracked": [
+          "Greenhouse gas emissions",
+          "Soil health",
+          "Biodiversity"
+        ],
+        "source_page": 7
+      }
+    ]
+  },
+  "Q16": {
+    "nature_based_solutions": [
+      {
+        "initiative_name": "Regenerative farming practices",
+        "description": "Implementing practices to improve soil health, enhance biodiversity, and improve water quality.",
+        "scale_or_area_covered": "Local farms",
+        "geographic_location": "Ireland",
+        "climate_adaptation_benefit": "Reduction of greenhouse gas emissions and improved resilience",
+        "source_page": 7
+      }
+    ]
+  },
+  "Q17": {
+    "innovation_initiatives": [
+      {
+        "initiative_name": "Collaboration with agronomists",
+        "technology_or_research_area": "Regenerative agriculture practices",
+        "partners_or_collaborators": [
+          "Irish farmers",
+          "Technical partners"
+        ],
+        "climate_risk_addressed": "Greenhouse gas emissions",
+        "stage": "Ongoing",
+        "source_page": 7
+      }
+    ]
+  },
+  "Q22": {
+    "adaptation_metrics": [
+      {
+        "metric_name": "Water use efficiency improvement",
+        "baseline_value": "Current efficiency",
+        "current_value": "40% improvement in water-stressed areas",
+        "target_value": "40%",
+        "target_year": "2030",
+        "reporting_frequency": "Annual",
+        "source_page": 8
+      },
+      {
+        "metric_name": "Carbon emissions reduction",
+        "baseline_value": "Current emissions",
+        "current_value": "15,000 metric tons avoided annually",
+        "target_value": "Net zero by 2030",
+        "target_year": "2030",
+        "reporting_frequency": "Annual",
+        "source_page": 10
+      }
+    ]
+  },
+  "Q19": {
+    "board_oversight": {
+      "responsible_committee": "Sustainability Committee",
+      "meeting_frequency": "Quarterly",
+      "climate_expertise_on_board": "Yes"
+    },
+    "executive_responsibility": {
+      "role_or_title": "Chief Sustainability Officer",
+      "name_if_disclosed": "Not disclosed"
+    },
+    "climate_committees_or_teams": [
+      "Sustainability Team",
+      "Water Stewardship Team"
+    ],
+    "source_pages": [
+      8,
+      9
+    ]
+  },
+  "Q20": {
+    "integration_areas": [
+      "business continuity planning",
+      "procurement decisions",
+      "site selection",
+      "product development",
+      "strategic planning"
+    ],
+    "business_continuity_measures": "Implementing water stewardship strategies to ensure operational resilience in water-stressed areas.",
+    "procurement_or_sourcing_changes": "Sourcing grains and ingredients from farmers practicing regenerative agriculture to enhance sustainability.",
+    "site_selection_criteria": "Selecting sites based on water availability and sustainability practices.",
+    "strategic_examples": [
+      "Investment in Ireland’s first carbon-neutral brewery to minimize carbon emissions and water consumption."
+    ],
+    "source_pages": [
+      10,
+      12
+    ]
+  },
+  "Q21": {
+    "stakeholders_engaged": [
+      {
+        "stakeholder_type": "farmers",
+        "engagement_activity": "Training in regenerative agriculture practices",
+        "purpose_or_focus": "Improve soil health and reduce emissions",
+        "geographic_focus": "Ireland",
+        "source_page": 7
+      },
+      {
+        "stakeholder_type": "governments",
+        "engagement_activity": "Collaborating with EU policymakers on sustainability policies",
+        "purpose_or_focus": "Create supportive policies for sustainable agriculture",
+        "geographic_focus": "Europe",
+        "source_page": 8
+      },
+      {
+        "stakeholder_type": "local communities",
+        "engagement_activity": "Community engagement initiatives for water stewardship",
+        "purpose_or_focus": "Address local water challenges",
+        "geographic_focus": "Local catchments in Europe",
+        "source_page": 9
+      },
+      {
+        "stakeholder_type": "NGOs",
+        "engagement_activity": "Partnerships for environmental sustainability",
+        "purpose_or_focus": "Promote responsible consumption and environmental responsibility",
+        "geographic_focus": "Global",
+        "source_page": 10
+      }
+    ]
+  }
+}

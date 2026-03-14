@@ -1,0 +1,534 @@
+{
+  "Q0": {
+    "is_relevant": true,
+    "document_type": "Non-Financial Statement",
+    "climate_sections": [
+      "Climate-related risks",
+      "Resilience analysis results – climate-related transition risks",
+      "Assessing climate-related opportunities",
+      "Assessing pollution-related impacts and risks",
+      "Climate scenarios considered by Nestlé"
+    ],
+    "confidence": 1.0,
+    "skip_further_extraction": false
+  },
+  "Q1": {
+    "company_name": "Nestlé",
+    "report_title": "Non-Financial Statement 2024",
+    "publication_year": 2024,
+    "reporting_period": "2023",
+    "report_type": "Sustainability Report",
+    "source_pages": [
+      32,
+      22,
+      35,
+      24
+    ]
+  },
+  "Q2": {
+    "frameworks_referenced": [
+      "TCFD"
+    ],
+    "climate_sections": [
+      {
+        "section_name": "General Disclosures",
+        "page_range": "21-24"
+      },
+      {
+        "section_name": "Environmental Disclosures",
+        "page_range": "32-33"
+      }
+    ],
+    "tcfd_alignment_claimed": true,
+    "external_assurance": false,
+    "source_pages": [
+      165
+    ]
+  },
+  "Q3": {
+    "operations_coverage_pct": "100%",
+    "supply_chain_coverage_pct": "100%",
+    "geographies_covered": [],
+    "business_units_covered": [
+      "Strategic Business Units",
+      "Globally Managed Businesses"
+    ],
+    "assessment_methodology": "Annual assessments covering all stages of the value chain including direct operations, upstream and downstream.",
+    "source_pages": [
+      22,
+      24
+    ]
+  },
+  "Q5": {
+    "scenarios_used": [
+      "Low – Paris Ambition",
+      "Intermediate – RCP 4.5",
+      "High – RCP 8.5"
+    ],
+    "temperature_pathways": [
+      "2°C",
+      "3°C"
+    ],
+    "time_horizons": [
+      "short term",
+      "medium term",
+      "long term"
+    ],
+    "methodology_described": true,
+    "scenario_analysis_scope": "Assessment of transition and physical risks under different climate scenarios.",
+    "source_pages": [
+      24,
+      41
+    ]
+  },
+  "Q10": {
+    "materiality_assessment": {
+      "methodology": "Comprehensive risk management strategy using the TCFD framework.",
+      "criteria_used": [
+        "financial impact",
+        "likelihood",
+        "strategic importance"
+      ],
+      "material_risks_identified": [
+        {
+          "risk_name": "Transition risks",
+          "materiality_level": "material",
+          "justification": "Transition risks will become material to the business depending on global actions taken to address climate change.",
+          "source_page": 41
+        },
+        {
+          "risk_name": "Physical risks",
+          "materiality_level": "material",
+          "justification": "Climate-related risks such as heatwaves, drought, and water stress may impact raw material availability and quality.",
+          "source_page": 41
+        }
+      ],
+      "non_material_risks": [],
+      "source_pages": [
+        21,
+        24,
+        41
+      ]
+    }
+  },
+  "Q4": {
+    "hazards": [
+      {
+        "hazard_type": "water stress",
+        "location": "not specified",
+        "affected_assets": "raw materials",
+        "time_horizon": "long term",
+        "severity_or_likelihood": "high",
+        "source_page": 41
+      },
+      {
+        "hazard_type": "drought",
+        "location": "not specified",
+        "affected_assets": "raw materials",
+        "time_horizon": "long term",
+        "severity_or_likelihood": "high",
+        "source_page": 41
+      },
+      {
+        "hazard_type": "flooding",
+        "location": "not specified",
+        "affected_assets": "existing sites and greenfield projects",
+        "time_horizon": "short to medium term",
+        "severity_or_likelihood": "high",
+        "source_page": 57
+      },
+      {
+        "hazard_type": "extreme heat",
+        "location": "not specified",
+        "affected_assets": "raw materials",
+        "time_horizon": "long term",
+        "severity_or_likelihood": "high",
+        "source_page": 41
+      },
+      {
+        "hazard_type": "storms",
+        "location": "not specified",
+        "affected_assets": "existing sites and greenfield projects",
+        "time_horizon": "short to medium term",
+        "severity_or_likelihood": "high",
+        "source_page": 57
+      },
+      {
+        "hazard_type": "extreme weather events",
+        "location": "not specified",
+        "affected_assets": "operational capabilities and assets",
+        "time_horizon": "short to medium term",
+        "severity_or_likelihood": "increased",
+        "source_page": 63
+      },
+      {
+        "hazard_type": "temperature changes",
+        "location": "not specified",
+        "affected_assets": "key raw materials",
+        "time_horizon": "long term",
+        "severity_or_likelihood": "high",
+        "source_page": 41
+      },
+      {
+        "hazard_type": "precipitation changes",
+        "location": "not specified",
+        "affected_assets": "existing sites and greenfield projects",
+        "time_horizon": "short to medium term",
+        "severity_or_likelihood": "high",
+        "source_page": 57
+      },
+      {
+        "hazard_type": "wildfires",
+        "location": "not specified",
+        "affected_assets": "not specified",
+        "time_horizon": "not mentioned",
+        "severity_or_likelihood": "not mentioned",
+        "source_page": 0
+      },
+      {
+        "hazard_type": "ocean warming",
+        "location": "not specified",
+        "affected_assets": "not specified",
+        "time_horizon": "not mentioned",
+        "severity_or_likelihood": "not mentioned",
+        "source_page": 0
+      }
+    ]
+  },
+  "Q12": {
+    "location_specific_risks": [
+      {
+        "location_name": "not specified",
+        "location_type": "not specified",
+        "climate_risks_identified": [
+          "water stress",
+          "drought",
+          "flooding",
+          "extreme heat",
+          "storms",
+          "extreme weather events",
+          "temperature changes",
+          "precipitation changes"
+        ],
+        "vulnerabilities_identified": [
+          "operational capabilities",
+          "raw materials"
+        ],
+        "assessment_completed": true,
+        "risk_level": "high",
+        "source_page": 41
+      }
+    ]
+  },
+  "Q6": {
+    "vulnerable_assets": [
+      {
+        "asset_type": "production sites",
+        "location": "various locations",
+        "climate_risk": "floods and windstorms",
+        "potential_impact": "damage to operational capabilities and assets",
+        "materiality_assessment": "current mitigation strategy remains appropriate",
+        "source_page": 63
+      }
+    ]
+  },
+  "Q7": {
+    "supply_chain_risks": [
+      {
+        "commodity_or_material": "key ingredients",
+        "sourcing_region": "various regions",
+        "climate_hazard": "changing temperatures and weather extremes",
+        "impact_on_supply": "lower yields and greater yield variability",
+        "tier_level": "not specified",
+        "source_page": 41
+      }
+    ]
+  },
+  "Q8": {
+    "identified_risks": [
+      {
+        "risk_category": "physical risks",
+        "risk_type": "climate-related risks",
+        "risk_description": "heatwaves, drought and water stress may impact raw material availability and quality",
+        "affected_operations": [
+          "production",
+          "supply chain"
+        ],
+        "geographic_locations": [
+          "various regions"
+        ],
+        "value_chain_segment": "sourcing",
+        "potential_magnitude": "material",
+        "likelihood": "medium to high",
+        "source_page": 41
+      },
+      {
+        "risk_category": "transition risks",
+        "risk_type": "policy changes",
+        "risk_description": "changes in policy affecting carbon pricing and taxes",
+        "affected_operations": [
+          "strategic planning",
+          "financial planning"
+        ],
+        "geographic_locations": [
+          "global"
+        ],
+        "value_chain_segment": "corporate governance",
+        "potential_magnitude": "material",
+        "likelihood": "medium",
+        "source_page": 41
+      }
+    ]
+  },
+  "Q9": {
+    "vulnerabilities": [
+      {
+        "vulnerable_element": "supply source",
+        "climate_driver": "changing temperatures and weather extremes",
+        "location": "various sourcing regions",
+        "vulnerability_reason": "affects quality and availability of key raw materials",
+        "exposure_level": "high",
+        "adaptive_capacity": "moderate",
+        "source_page": 41
+      }
+    ]
+  },
+  "Q11": {
+    "cost_estimates": [
+      {
+        "risk_description": "Transition risks over 10 years",
+        "cost_amount": "Not disclosed",
+        "currency": "CHF",
+        "cost_type": "projected future costs",
+        "time_period": "10 years",
+        "geographic_location": "Global",
+        "estimation_method": "analysis of risk impacts from Low – Paris Ambition, Intermediate – RCP 4.5 and High – RCP 8.5",
+        "scenario_if_applicable": "Low – Paris Ambition, Intermediate – RCP 4.5, High – RCP 8.5",
+        "source_page": 285
+      },
+      {
+        "risk_description": "Physical risks affecting yield change in 2040",
+        "cost_amount": "Not disclosed",
+        "currency": "CHF",
+        "cost_type": "scenario-based estimates",
+        "time_period": "2040",
+        "geographic_location": "Global",
+        "estimation_method": "modeling results",
+        "scenario_if_applicable": "steady-state, intermediate climate scenario (+2 to 3°C by 2100)",
+        "source_page": 285
+      }
+    ]
+  },
+  "Q18": {
+    "financial_disclosure": {
+      "capex_disclosed": false,
+      "adaptation_investment_amount": "Not disclosed",
+      "currency": "CHF",
+      "time_period": "Not disclosed",
+      "allocation_breakdown": [],
+      "percentage_of_total_capex": "Not disclosed",
+      "source_page": 63
+    }
+  },
+  "Q23": {
+    "financial_impact_disclosed": true,
+    "quantified_impacts": [
+      {
+        "risk_type": "Physical risks",
+        "financial_impact_amount": "Not disclosed",
+        "currency": "CHF",
+        "time_horizon": "medium to longer term",
+        "climate_scenario": "RCP 4.5",
+        "source_page": 42
+      }
+    ],
+    "insurance_or_risk_transfer": {
+      "description": "Not disclosed",
+      "cost_if_disclosed": "Not disclosed"
+    }
+  },
+  "Q13": {
+    "risk_adaptation_linkage": [
+      {
+        "climate_risk": "floods and windstorms",
+        "risk_location": "existing sites and greenfield projects",
+        "adaptation_measures": [
+          {
+            "measure_description": "in-depth identification of natural hazard exposure",
+            "implementation_status": "ongoing",
+            "implementation_timeline": "2023",
+            "measure_location": "various sites",
+            "investment_amount": "not specified",
+            "effectiveness_or_impact": "proactively anticipate potential risks",
+            "source_page": 57
+          }
+        ],
+        "source_page": 57
+      },
+      {
+        "climate_risk": "transition risks",
+        "risk_location": "global",
+        "adaptation_measures": [
+          {
+            "measure_description": "enhancing operational resilience and modifying business practices",
+            "implementation_status": "ongoing",
+            "implementation_timeline": "2023",
+            "measure_location": "global operations",
+            "investment_amount": "not specified",
+            "effectiveness_or_impact": "align with global climate goals",
+            "source_page": 57
+          }
+        ],
+        "source_page": 57
+      }
+    ]
+  },
+  "Q14": {
+    "implemented_measures": [
+      {
+        "measure_description": "scenario-based modeling for climate-related impact risks",
+        "risk_addressed": "climate-related risks",
+        "location_or_scope": "global operations",
+        "implementation_status": "completed",
+        "implementation_year": "2023",
+        "source_page": 57
+      },
+      {
+        "measure_description": "top-down climate assessments incorporated into strategic portfolio reviews",
+        "risk_addressed": "climate-related risks",
+        "location_or_scope": "Strategic Business Units and Globally Managed Businesses",
+        "implementation_status": "ongoing",
+        "implementation_year": "2023",
+        "source_page": 37
+      }
+    ]
+  },
+  "Q15": {
+    "resilience_programs": [
+      {
+        "program_name": "supplier climate risk assessment programs",
+        "description": "assessing climate-related risks and developing mitigation strategies",
+        "commodities_or_materials_covered": [
+          "various commodities"
+        ],
+        "geographic_focus": "global",
+        "number_of_suppliers_or_farmers": "not specified",
+        "metrics_tracked": [
+          "risk assessments",
+          "mitigation strategies"
+        ],
+        "source_page": 38
+      }
+    ]
+  },
+  "Q16": {
+    "nature_based_solutions": [
+      {
+        "initiative_name": "nature-based solutions for food production",
+        "description": "implementing less resource-intense and more resilient food production methods",
+        "scale_or_area_covered": "not specified",
+        "geographic_location": "global",
+        "climate_adaptation_benefit": "reduce resource intensity and enhance resilience",
+        "source_page": 285
+      }
+    ]
+  },
+  "Q17": {
+    "innovation_initiatives": [
+      {
+        "initiative_name": "climate-resilient crop varieties",
+        "technology_or_research_area": "breeding and genetics programs",
+        "partners_or_collaborators": [
+          "research institutions"
+        ],
+        "climate_risk_addressed": "yield variability due to climate change",
+        "stage": "ongoing",
+        "source_page": 42
+      }
+    ]
+  },
+  "Q22": {
+    "adaptation_metrics": [
+      {
+        "metric_name": "percentage of suppliers assessed for climate risk",
+        "baseline_value": "not specified",
+        "current_value": "not specified",
+        "target_value": "not specified",
+        "target_year": "not specified",
+        "reporting_frequency": "annual",
+        "source_page": 37
+      }
+    ]
+  },
+  "Q19": {
+    "board_oversight": {
+      "responsible_committee": "Board of Directors",
+      "meeting_frequency": "yearly",
+      "climate_expertise_on_board": "Yes"
+    },
+    "executive_responsibility": {
+      "role_or_title": "Executive Management",
+      "name_if_disclosed": "Not disclosed"
+    },
+    "climate_committees_or_teams": [
+      "Climate Risk Management Team",
+      "Sustainability Committee"
+    ],
+    "source_pages": [
+      32,
+      22
+    ]
+  },
+  "Q20": {
+    "integration_areas": [
+      "business continuity planning",
+      "procurement decisions",
+      "site selection",
+      "product development",
+      "strategic planning"
+    ],
+    "business_continuity_measures": "Incorporation of climate risk assessments into operational adjustments and long-term strategic alignments.",
+    "procurement_or_sourcing_changes": "Adjustments in sourcing origins to enhance resilience.",
+    "site_selection_criteria": "Assessment of natural catastrophe risks including precipitation, flood, hail, heat, and drought.",
+    "strategic_examples": [
+      "Annual strategic portfolio reviews incorporating climate assessments.",
+      "Scenario analyses to assess resilience under different climate scenarios."
+    ],
+    "source_pages": [
+      22,
+      35
+    ]
+  },
+  "Q21": {
+    "stakeholders_engaged": [
+      {
+        "stakeholder_type": "suppliers",
+        "engagement_activity": "Collaboration on mitigation strategies",
+        "purpose_or_focus": "Developing resilience in supply chains",
+        "geographic_focus": "Global",
+        "source_page": 38
+      },
+      {
+        "stakeholder_type": "farmers",
+        "engagement_activity": "Training and support programs",
+        "purpose_or_focus": "Enhancing sustainable agricultural practices",
+        "geographic_focus": "Global",
+        "source_page": 38
+      },
+      {
+        "stakeholder_type": "governments",
+        "engagement_activity": "Policy advocacy",
+        "purpose_or_focus": "Promoting climate-friendly regulations",
+        "geographic_focus": "Global",
+        "source_page": 38
+      },
+      {
+        "stakeholder_type": "NGOs",
+        "engagement_activity": "Partnerships for sustainability initiatives",
+        "purpose_or_focus": "Addressing climate change impacts",
+        "geographic_focus": "Global",
+        "source_page": 38
+      }
+    ]
+  }
+}

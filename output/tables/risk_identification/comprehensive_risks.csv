@@ -1,0 +1,6 @@
+document_id,risk_category,risk_type,risk_description,affected_operations,geographic_locations,value_chain_segment,potential_magnitude,likelihood,materiality_level,materiality_justification,source_page,found,source_text
+nestl_2024_report_2ce8,physical risks,climate-related risks,heatwaves; drought and water stress may impact raw material availability and quality,production|supply chain,various regions,sourcing,material,medium to high,,,41,True,
+nestl_2024_report_2ce8,transition risks,policy changes,changes in policy affecting carbon pricing and taxes,strategic planning|financial planning,global,corporate governance,material,medium,,,41,True,
+nestl_2024_report_2ce8,vulnerability,physical,affects quality and availability of key raw materials,,various sourcing regions,,high,,,,41,True,
+pernod_ricard_2023_report_6256,physical,climate change impacts,earlier harvest dates; heat waves; hydric stress; increased disease pressure; episodes of hail or frost,vineyard management|grape production,Champagne|Cognac,agriculture,high,likely,,,8,True,
+pernod_ricard_2023_report_6256,vulnerability,physical,unique terroirs are vulnerable to climate impacts affecting grape quality and yields,,Champagne and Cognac AOC,,high,,,,8,True,

@@ -1,0 +1,10 @@
+timestamp,original_filename,new_filename,document_id,company,year,type
+2026-01-31T20:20:17.396432,"ID1.pdf","Nestl__Sustainability_Repor_2024.pdf","nestl_2024_report_36f9","Nestlé",2024,"Sustainability Report"
+2026-01-31T20:22:44.611170,"ID1_1.pdf","Danone_annual_report_2024.pdf","danone_2024_report_d1f4","Danone",2024,"annual report"
+2026-01-31T20:30:49.081508,"ID1_3.pdf","Heineken_N_V__Annual_Report_2024.pdf","heineken_n_v_2024_report_6acd","Heineken N.V.",2024,"Annual Report"
+2026-01-31T20:34:44.599045,"ID1_4.pdf","Kerry_Group_Code_of_Conduct_2025.pdf","kerry_group_2025_report_3ad5","Kerry Group",2025,"Code of Conduct"
+2026-01-31T20:52:14.919184,"ID1_5.pdf","Pernod_Ricard_Espa_a_sustainability_repor_2024.pdf","pernod_ricard_espa_a_2024_report_e4f3","Pernod Ricard España",2024,"sustainability report"
+2026-01-31T21:13:39.980144,"ID2_2.pdf","Diageo_Annual_report_2023.pdf","diageo_2023_report_a28c","Diageo",2023,"Annual report"
+2026-01-31T21:17:13.073983,"ID2_3.pdf","Heineken_N_V__annual_report_2024_1.pdf","heineken_n_v_2024_report_21c3","Heineken N.V.",2024,"annual report"
+2026-01-31T21:22:22.959631,"ID2_4.pdf","Pernod_Ricard_sustainability_repor_2023.pdf","pernod_ricard_2023_report_6256","Pernod Ricard",2023,"sustainability report"
+2026-01-31T21:26:21.201087,"Kerry_Group_Code_of_Conduct_2025.pdf","Kerry_Group_Supplier_Code_2025.pdf","kerry_group_2025_report_6237","Kerry Group",2025,"Supplier Code"

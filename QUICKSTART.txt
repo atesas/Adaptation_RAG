@@ -1,0 +1,53 @@
+QUICK START GUIDE - DUAL-INDEX SYSTEM
+======================================
+
+STEP 1: Install
+---------------
+pip install -r requirements.txt
+
+STEP 2: Configure
+-----------------
+cp .env.example .env
+# Edit .env with your Azure credentials:
+# - AZURE_OPENAI_KEY
+# - AZURE_OPENAI_ENDPOINT  
+# - AZURE_SEARCH_ENDPOINT
+# - AZURE_SEARCH_KEY
+
+STEP 3: Prepare Documents
+--------------------------
+mkdir documents
+# Copy your PDF files to documents/
+
+STEP 4: Create Questions File
+------------------------------
+# Create questions.txt with your questions (one per line):
+What is the main focus of this document?
+Which climate risks are identified?
+Is this about adaptation or mitigation?
+What type of document is this?
+
+STEP 5: Run Dual-Index Batch (RECOMMENDED)
+-------------------------------------------
+python cli.py dual-batch documents/ --questions-file questions.txt --parallel
+
+STEP 6: Check Results
+---------------------
+# Results saved to: output/qa_results.csv
+# Persistent KB built in: documents-index (Azure Search)
+# Temp index: temp-documents-index (now empty)
+
+WHAT HAPPENED:
+--------------
+✓ All documents indexed to persistent KB (parallel, fast)
+✓ Each document processed in isolated temp index (accurate)
+✓ Questions answered with maximum precision
+✓ Temp data cleaned up after each document
+✓ CSV results saved
+✓ Persistent KB ready for future queries
+
+QUERY YOUR KB LATER:
+--------------------
+python cli.py ask "What are the risks?" --document <document_name>
+
+See README.md for full documentation.
