@@ -445,7 +445,7 @@ class TestGoogleCSEAdapter:
         captured_queries: list[str] = []
 
         def fake_get(url: str, params: dict, timeout: int) -> "MagicMock":
-            captured_queries.append(params["q"])
+            captured_queries.append(params)
             mock_resp = MagicMock()
             mock_resp.status_code = 200
             mock_resp.ok = True
@@ -477,10 +477,17 @@ class TestGoogleCSEAdapter:
 
         # lookback=9 days, chunk=3 days → floor(9/3)+1 = 4 windows
         assert len(captured_queries) == 4, f"Expected 4 windows, got {len(captured_queries)}"
-        for q in captured_queries:
-            assert "after:" in q, f"Missing after: in query: {q}"
-            assert "before:" in q, f"Missing before: in query: {q}"
-            assert "climate food" in q
+        for params in captured_queries:
+            assert params["q"] == "climate food"
+            assert "sort" in params, f"Missing sort param: {params}"
+            # sort value must be date:r:YYYYMMDD:YYYYMMDD
+            assert params["sort"].startswith("date:r:"), f"Wrong sort format: {params['sort']}"
+            parts = params["sort"].split(":")
+            assert len(parts) == 4
+            start_d, end_d = parts[2], parts[3]
+            assert len(start_d) == 8 and start_d.isdigit()
+            assert len(end_d) == 8 and end_d.isdigit()
+            assert start_d <= end_d
 
     def test_date_chunking_deduplicates_urls_across_windows(self) -> None:
         """

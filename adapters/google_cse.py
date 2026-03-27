@@ -168,16 +168,18 @@ class GoogleCSEAdapter(BaseAdapter):
         cutoff = today - timedelta(days=lookback_days)
 
         while window_end >= cutoff:
-            after = window_start.strftime("%Y-%m-%d")
-            before = window_end.strftime("%Y-%m-%d")
-            dated_query = f"{query} after:{after} before:{before}"
+            # CSE JSON API date range: sort=date:r:YYYYMMDD:YYYYMMDD
+            sort_range = (
+                f"date:r:{window_start.strftime('%Y%m%d')}:{window_end.strftime('%Y%m%d')}"
+            )
 
             params: dict = {
                 "key": self._current_key(),
                 "cx": self._cse_id,
-                "q": dated_query,
+                "q": query,
                 "num": max_per_chunk,
                 "start": 1,
+                "sort": sort_range,
             }
             if file_type:
                 params["fileType"] = file_type
