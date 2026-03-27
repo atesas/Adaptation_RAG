@@ -21,7 +21,7 @@ import asyncio
 import hashlib
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import AsyncIterator, Iterator
 
@@ -135,74 +135,91 @@ class GoogleCSEAdapter(BaseAdapter):
 
     def _search(self, query: str) -> Iterator[dict]:
         """
-        Paginate through CSE results up to max_results.
-        Rotates API keys on quota errors.
-        Yields one result metadata dict per search hit.
+        Date-chunked search: splits the lookback period into windows of
+        date_chunk_days and runs a separate CSE query per window, appending
+        "after:YYYY-MM-DD before:YYYY-MM-DD" to the query each time.
 
-        Config keys that control the search:
-          max_results    int    Max results to fetch (default 20)
-          file_type      str    e.g. "pdf" — added as fileType param
-          date_restrict  str    CSE dateRestrict format: d[N], w[N], m[N], y[N]
-                                e.g. "m12" = last 12 months, "y2" = last 2 years
-                                (default: "y2" — avoids stale results)
+        This gives up to max_results_per_chunk hits per window rather than
+        max_results hits for the entire period — providing full temporal
+        coverage without drowning in results from a single popular date range.
+
+        Config keys (all optional, set in sources.yaml):
+          lookback_days         int  How far back from today to search (default 365)
+          date_chunk_days       int  Size of each search window in days (default 3)
+          max_results_per_chunk int  Max CSE results per window (default 10, max 10)
+          file_type             str  e.g. "pdf" — added as fileType param
+
+        Example with defaults on a 1-year lookback at 3-day chunks:
+          → ~122 windows × up to 10 results = up to ~1,220 candidate results
+          (in practice far fewer because most windows return 0–3 results)
+
+        Deduplication of URLs across windows is handled by the caller
+        (knowledge_store.deduplicate_document checks content_hash).
         """
-        max_results: int = self.config.get("max_results", 20)
+        lookback_days: int = self.config.get("lookback_days", 365)
+        chunk_days: int = self.config.get("date_chunk_days", 3)
+        max_per_chunk: int = min(self.config.get("max_results_per_chunk", 10), _MAX_RESULTS_PER_PAGE)
         file_type: str = self.config.get("file_type", "")
-        # Default y2 (last 2 years) prevents drowning in old results.
-        # Set date_restrict: "" in sources.yaml to disable.
-        date_restrict: str = self.config.get("date_restrict", "y2")
-        fetched = 0
-        start = 1
 
-        while fetched < max_results:
-            batch_size = min(_MAX_RESULTS_PER_PAGE, max_results - fetched)
+        seen_urls: set[str] = set()
+        today = datetime.utcnow().date()
+        window_end = today
+        window_start = today - timedelta(days=chunk_days - 1)
+        cutoff = today - timedelta(days=lookback_days)
+
+        while window_end >= cutoff:
+            after = window_start.strftime("%Y-%m-%d")
+            before = window_end.strftime("%Y-%m-%d")
+            dated_query = f"{query} after:{after} before:{before}"
+
             params: dict = {
                 "key": self._current_key(),
                 "cx": self._cse_id,
-                "q": query,
-                "num": batch_size,
-                "start": start,
+                "q": dated_query,
+                "num": max_per_chunk,
+                "start": 1,
             }
             if file_type:
                 params["fileType"] = file_type
-            if date_restrict:
-                params["dateRestrict"] = date_restrict
 
             try:
                 resp = requests.get(_CSE_ENDPOINT, params=params, timeout=_REQUEST_TIMEOUT)
             except requests.RequestException as exc:
-                raise AdapterFetchError(f"CSE API request failed: {exc}") from exc
+                logger.warning("CSE request failed for window %s–%s: %s", after, before, exc)
+                # advance window and continue rather than aborting entire search
+                window_end -= timedelta(days=chunk_days)
+                window_start -= timedelta(days=chunk_days)
+                continue
 
-            if resp.status_code == 429 or resp.status_code == 403:
+            if resp.status_code in (429, 403):
                 self._rotate_key()
                 if self._key_index == 0:
                     raise AdapterFetchError("All CSE API keys exhausted (quota exceeded)")
-                continue
+                continue  # retry same window with new key
 
             if not resp.ok:
-                raise AdapterFetchError(f"CSE API error {resp.status_code}: {resp.text[:200]}")
+                logger.warning("CSE API error %s for window %s–%s", resp.status_code, after, before)
+                window_end -= timedelta(days=chunk_days)
+                window_start -= timedelta(days=chunk_days)
+                continue
 
-            data = resp.json()
-            items = data.get("items", [])
-            if not items:
-                break
-
+            items = resp.json().get("items", [])
             for item in items:
+                url = item.get("link", "")
+                if not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
                 yield {
-                    "link": item.get("link", ""),
+                    "link": url,
                     "title": item.get("title", ""),
                     "snippet": item.get("snippet", ""),
                     "mime": item.get("mime", ""),
                 }
-                fetched += 1
-                if fetched >= max_results:
-                    return
 
-            if len(items) < batch_size:
-                break
-
-            start += batch_size
-            time.sleep(0.5)
+            # advance to next (older) window
+            window_end -= timedelta(days=chunk_days)
+            window_start -= timedelta(days=chunk_days)
+            time.sleep(0.2)  # brief pause between window requests
 
     def _current_key(self) -> str:
         return self._api_keys[self._key_index % len(self._api_keys)]

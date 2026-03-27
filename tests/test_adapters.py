@@ -436,3 +436,96 @@ class TestGoogleCSEAdapter:
                 docs = asyncio.get_event_loop().run_until_complete(run())
 
         assert docs == []
+
+    def test_date_chunking_generates_multiple_windows(self) -> None:
+        """
+        _search() with a 9-day lookback at 3-day chunks must produce exactly
+        3 windows, each with a dated query containing after: and before: operators.
+        """
+        captured_queries: list[str] = []
+
+        def fake_get(url: str, params: dict, timeout: int) -> "MagicMock":
+            captured_queries.append(params["q"])
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.ok = True
+            mock_resp.json.return_value = {"items": []}
+            return mock_resp
+
+        with patch.dict("os.environ", {
+            "GOOGLE_CSE_API_KEY": "test-key",
+            "GOOGLE_CSE_ID": "test-cx",
+            "AZURE_SEARCH_ENDPOINT": "https://test.search.windows.net",
+            "AZURE_SEARCH_KEY": "test",
+            "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com/",
+            "AZURE_OPENAI_KEY": "test",
+        }):
+            import importlib
+            import config as cfg
+            importlib.reload(cfg)
+            from adapters.google_cse import GoogleCSEAdapter
+
+            adapter = GoogleCSEAdapter({
+                "document_type": "guidance",
+                "lookback_days": 9,
+                "date_chunk_days": 3,
+                "max_results_per_chunk": 10,
+            })
+
+            with patch("adapters.google_cse.requests.get", side_effect=fake_get):
+                list(adapter._search("climate food"))
+
+        # lookback=9 days, chunk=3 days → floor(9/3)+1 = 4 windows
+        assert len(captured_queries) == 4, f"Expected 4 windows, got {len(captured_queries)}"
+        for q in captured_queries:
+            assert "after:" in q, f"Missing after: in query: {q}"
+            assert "before:" in q, f"Missing before: in query: {q}"
+            assert "climate food" in q
+
+    def test_date_chunking_deduplicates_urls_across_windows(self) -> None:
+        """
+        If the same URL appears in two different date windows, it should only
+        be yielded once.
+        """
+        repeated_item = {"link": "https://example.com/report.pdf", "title": "Report",
+                         "snippet": "", "mime": ""}
+
+        call_count = 0
+
+        def fake_get(url: str, params: dict, timeout: int) -> "MagicMock":
+            nonlocal call_count
+            call_count += 1
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.ok = True
+            mock_resp.json.return_value = {"items": [repeated_item]}
+            return mock_resp
+
+        with patch.dict("os.environ", {
+            "GOOGLE_CSE_API_KEY": "test-key",
+            "GOOGLE_CSE_ID": "test-cx",
+            "AZURE_SEARCH_ENDPOINT": "https://test.search.windows.net",
+            "AZURE_SEARCH_KEY": "test",
+            "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com/",
+            "AZURE_OPENAI_KEY": "test",
+        }):
+            import importlib
+            import config as cfg
+            importlib.reload(cfg)
+            from adapters.google_cse import GoogleCSEAdapter
+
+            adapter = GoogleCSEAdapter({
+                "document_type": "guidance",
+                "lookback_days": 6,
+                "date_chunk_days": 3,
+                "max_results_per_chunk": 10,
+            })
+
+            with patch("adapters.google_cse.requests.get", side_effect=fake_get):
+                results = list(adapter._search("climate food"))
+
+        # lookback=6 days, chunk=3 days → floor(6/3)+1 = 3 windows
+        assert call_count == 3
+        # but the URL appeared in both — only one result yielded
+        assert len(results) == 1
+        assert results[0]["link"] == "https://example.com/report.pdf"
