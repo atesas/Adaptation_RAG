@@ -96,17 +96,45 @@ class TestCorporatePDFAdapter:
         with pytest.raises(AdapterFetchError):
             asyncio.get_event_loop().run_until_complete(run())
 
-    def test_raises_parse_error_for_non_pdf(self, tmp_path: Path) -> None:
-        txt_file = tmp_path / "not_a_pdf.txt"
-        txt_file.write_text("This is not a PDF.")
+    def test_raises_parse_error_for_unsupported_extension(self, tmp_path: Path) -> None:
+        csv_file = tmp_path / "data.csv"
+        csv_file.write_text("col1,col2\n1,2")
         adapter = self._make_adapter()
 
         async def run() -> None:
-            async for _ in adapter.fetch(str(txt_file)):
+            async for _ in adapter.fetch(str(csv_file)):
                 pass
 
         with pytest.raises(AdapterParseError):
             asyncio.get_event_loop().run_until_complete(run())
+
+    def test_txt_file_yields_document(self, tmp_path: Path) -> None:
+        txt_file = tmp_path / "report.txt"
+        txt_file.write_text("Climate adaptation content here.")
+        adapter = self._make_adapter()
+        docs = []
+
+        async def run() -> None:
+            async for doc in adapter.fetch(str(txt_file)):
+                docs.append(doc)
+
+        asyncio.get_event_loop().run_until_complete(run())
+        assert len(docs) == 1
+        assert docs[0].raw_text == "Climate adaptation content here."
+
+    def test_directory_yields_documents_for_each_file(self, tmp_path: Path) -> None:
+        (tmp_path / "a.txt").write_text("Content A")
+        (tmp_path / "b.txt").write_text("Content B")
+        (tmp_path / "ignore.csv").write_text("not,included")
+        adapter = self._make_adapter()
+        docs = []
+
+        async def run() -> None:
+            async for doc in adapter.fetch(str(tmp_path)):
+                docs.append(doc)
+
+        asyncio.get_event_loop().run_until_complete(run())
+        assert len(docs) == 2
 
     def test_document_has_all_required_fields(self, tmp_path: Path) -> None:
         """

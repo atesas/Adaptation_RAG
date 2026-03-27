@@ -71,6 +71,8 @@ sources:
       - beverages
       - food_and_beverage
     rate_limit_rpm: 60
+    max_results: 20
+    date_restrict: "y2"        # last 2 years — avoids stale results; set "" to disable
     note: >
       Finds and downloads corporate sustainability/TCFD/CSRD reports
       for food, beverage, and agriculture companies.
@@ -108,6 +110,8 @@ sources:
       - water
       - ecosystems
     rate_limit_rpm: 60
+    max_results: 20
+    date_restrict: "y3"        # last 3 years — policy docs update less frequently
     note: >
       Finds policy documents, NAPs, regulatory guidance, and scientific reports
       relevant to climate adaptation in food/agriculture/beverage sectors.
@@ -130,6 +134,8 @@ sources:
     enabled: true
     schedule: monthly
     rate_limit_rpm: 60
+    max_results: 10
+    date_restrict: "y3"
     note: >
       Targets specific high-quality domains known to publish climate adaptation
       content relevant to food/agriculture. Runs monthly — content updates slowly.

@@ -34,7 +34,9 @@ class CorporatePDFAdapter(BaseAdapter):
     async def fetch(self, query_or_path: str) -> AsyncIterator[Document]:
         """
         Args:
-            query_or_path: Absolute or relative path to a PDF file.
+            query_or_path: Path to a PDF file, a plain-text (.txt) file, or a
+                           directory. Directories are expanded to all .pdf and
+                           .txt files they contain (non-recursive).
 
         Yields:
             Document objects with extraction_status="pending".
@@ -46,15 +48,29 @@ class CorporatePDFAdapter(BaseAdapter):
         path = Path(query_or_path)
 
         if not path.exists():
-            raise AdapterFetchError(f"PDF file not found: {path}")
+            raise AdapterFetchError(f"Path not found: {path}")
 
-        if not path.suffix.lower() == ".pdf":
-            raise AdapterParseError(f"Expected a .pdf file, got: {path.suffix}")
+        # Directory — expand to all .pdf and .txt files inside it
+        if path.is_dir():
+            files = sorted(
+                p for p in path.iterdir()
+                if p.suffix.lower() in {".pdf", ".txt"} and p.is_file()
+            )
+            if not files:
+                raise AdapterFetchError(f"No .pdf or .txt files found in directory: {path}")
+            for file_path in files:
+                async for doc in self.fetch(str(file_path)):
+                    yield doc
+            return
+
+        suffix = path.suffix.lower()
+        if suffix not in {".pdf", ".txt"}:
+            raise AdapterParseError(f"Expected a .pdf or .txt file, got: {path.suffix}")
 
         raw_text = self._extract_text(path)
 
         if not raw_text.strip():
-            raise AdapterParseError(f"No text extracted from PDF: {path.name}")
+            raise AdapterParseError(f"No text extracted from: {path.name}")
 
         ingestion_date = datetime.utcnow()
 
@@ -89,19 +105,14 @@ class CorporatePDFAdapter(BaseAdapter):
             yield doc
 
     def _extract_text(self, path: Path) -> str:
-        """
-        Extract full text from all pages of a PDF using PyPDF2.
+        """Extract text from a PDF or plain-text file."""
+        if path.suffix.lower() == ".txt":
+            try:
+                return path.read_text(encoding="utf-8", errors="replace")
+            except Exception as exc:
+                raise AdapterFetchError(f"Cannot read text file: {path}") from exc
 
-        Args:
-            path: Path to the PDF file.
-
-        Returns:
-            Concatenated text from all pages.
-
-        Raises:
-            AdapterFetchError: if the file cannot be opened.
-            AdapterParseError: if PyPDF2 raises a parsing error.
-        """
+        # PDF
         try:
             with open(path, "rb") as fh:
                 reader = PyPDF2.PdfReader(fh)

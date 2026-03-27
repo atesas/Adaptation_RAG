@@ -138,9 +138,19 @@ class GoogleCSEAdapter(BaseAdapter):
         Paginate through CSE results up to max_results.
         Rotates API keys on quota errors.
         Yields one result metadata dict per search hit.
+
+        Config keys that control the search:
+          max_results    int    Max results to fetch (default 20)
+          file_type      str    e.g. "pdf" — added as fileType param
+          date_restrict  str    CSE dateRestrict format: d[N], w[N], m[N], y[N]
+                                e.g. "m12" = last 12 months, "y2" = last 2 years
+                                (default: "y2" — avoids stale results)
         """
         max_results: int = self.config.get("max_results", 20)
         file_type: str = self.config.get("file_type", "")
+        # Default y2 (last 2 years) prevents drowning in old results.
+        # Set date_restrict: "" in sources.yaml to disable.
+        date_restrict: str = self.config.get("date_restrict", "y2")
         fetched = 0
         start = 1
 
@@ -155,6 +165,8 @@ class GoogleCSEAdapter(BaseAdapter):
             }
             if file_type:
                 params["fileType"] = file_type
+            if date_restrict:
+                params["dateRestrict"] = date_restrict
 
             try:
                 resp = requests.get(_CSE_ENDPOINT, params=params, timeout=_REQUEST_TIMEOUT)

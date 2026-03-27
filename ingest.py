@@ -315,27 +315,18 @@ TWO-STEP WORKFLOW (search first, classify later):
         print("  python ingest.py --source corporate_pdf_direct --path tmp/staged/ --all-staged")
 
     elif args.all_staged:
-        staged_files = sorted(_STAGED_DIR.glob("*.txt"))
-        if not staged_files:
-            print("No .txt files found in tmp/staged/. Run --download-only first.")
+        # --path can be any directory; defaults to tmp/staged/
+        target_dir = Path(args.path) if Path(args.path).is_dir() else _STAGED_DIR
+        files = sorted(p for p in target_dir.iterdir()
+                       if p.suffix.lower() in {".pdf", ".txt"} and p.is_file())
+        if not files:
+            print(f"No .pdf or .txt files found in {target_dir}. Run --download-only first.")
         else:
-            print(f"Processing {len(staged_files)} staged file(s)...")
-            total = {
-                "documents_processed": 0, "documents_skipped_duplicate": 0,
-                "passages_extracted": 0, "passages_auto_approved": 0,
-                "passages_pending_review": 0, "passages_auto_rejected": 0, "errors": [],
-            }
-            for f in staged_files:
-                print(f"  → {f.name}")
-                result = asyncio.run(
-                    ingest(str(f), "corporate_pdf_direct", client_facing=args.client_facing)
-                )
-                for k in ("documents_processed", "passages_extracted",
-                          "passages_auto_approved", "passages_pending_review",
-                          "passages_auto_rejected", "documents_skipped_duplicate"):
-                    total[k] += result[k]
-                total["errors"].extend(result["errors"])
-            print(f"\nDone. {total}")
+            print(f"Processing {len(files)} file(s) from {target_dir} ...")
+            result = asyncio.run(
+                ingest(str(target_dir), "corporate_pdf_direct", client_facing=args.client_facing)
+            )
+            print(f"\nDone. {result}")
 
     else:
         result = asyncio.run(
