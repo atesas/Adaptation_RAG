@@ -18,7 +18,7 @@ Three-pillar architecture:
 |-------|--------|-------------|
 | **Phase 0** | Complete | Repo restructure, schemas, adapters, tests |
 | **Phase 1** | Complete | `ingest.py`, `taxonomy.py`, `knowledge_store.py`, two-stage extraction |
-| **Phase 2** | Planned | GCF API, OECD API, output generation engines |
+| **Phase 2** | Complete | GCF API, OECD API adapters, Streamlit review UI, GitHub Actions |
 
 ## Repository Structure
 

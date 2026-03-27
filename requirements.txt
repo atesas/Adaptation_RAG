@@ -11,11 +11,15 @@ python-dotenv==1.0.0
 pyyaml>=6.0
 langdetect>=1.0.9
 requests>=2.31
+aiohttp>=3.9
 
 # Download / scraping (google_cse adapter)
 pandas>=2.0
 selenium>=4.0
 webdriver-manager>=4.0
+
+# Validation UI
+streamlit>=1.35
 
 # Testing
 pytest>=8.0

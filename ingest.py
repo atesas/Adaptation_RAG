@@ -31,8 +31,12 @@ _ADAPTER_REGISTRY: dict[str, type[BaseAdapter]] = {}
 def _load_adapters() -> None:
     from adapters.corporate_pdf import CorporatePDFAdapter
     from adapters.google_cse import GoogleCSEAdapter
+    from adapters.gcf_api import GCFAPIAdapter
+    from adapters.oecd_api import OECDAPIAdapter
     _ADAPTER_REGISTRY["CorporatePDFAdapter"] = CorporatePDFAdapter
     _ADAPTER_REGISTRY["GoogleCSEAdapter"] = GoogleCSEAdapter
+    _ADAPTER_REGISTRY["GCFAPIAdapter"] = GCFAPIAdapter
+    _ADAPTER_REGISTRY["OECDAPIAdapter"] = OECDAPIAdapter
 
 
 def _load_sources() -> dict:
