@@ -1,72 +1,50 @@
-"""Configuration for Climate Risk Extraction System"""
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 
-load_dotenv()
+# ── Azure AI Search ───────────────────────────────────────────────────────────
+AZURE_SEARCH_ENDPOINT  = os.environ["AZURE_SEARCH_ENDPOINT"]
+AZURE_SEARCH_KEY       = os.environ["AZURE_SEARCH_KEY"]
 
-class Config:
-    # Azure OpenAI
-    AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY")
-    AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
-    AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4-turbo")
-    AZURE_EMBEDDING_DEPLOYMENT = os.getenv("AZURE_EMBEDDING_DEPLOYMENT", "text-embedding-3-large")
-    OPENAI_API_VERSION = "2024-10-01-preview"
+# ── Azure OpenAI ──────────────────────────────────────────────────────────────
+AZURE_OPENAI_ENDPOINT  = os.environ["AZURE_OPENAI_ENDPOINT"]
+AZURE_OPENAI_KEY       = os.environ["AZURE_OPENAI_KEY"]
 
-    # Azure AI Search
-    AZURE_SEARCH_ENDPOINT = os.getenv("AZURE_SEARCH_ENDPOINT")
-    AZURE_SEARCH_KEY = os.getenv("AZURE_SEARCH_KEY")
-    AZURE_SEARCH_TEMP_INDEX = os.getenv("AZURE_SEARCH_TEMP_INDEX", "climate-temp-index")
+# ── Model deployments ─────────────────────────────────────────────────────────
+EMBEDDING_DEPLOYMENT   = os.environ.get("EMBEDDING_DEPLOYMENT", "text-embedding-3-large")
+GPT4O_DEPLOYMENT       = os.environ.get("GPT4O_DEPLOYMENT", "gpt-4o")
+GPT4O_MINI_DEPLOYMENT  = os.environ.get("GPT4O_MINI_DEPLOYMENT", "gpt-4o-mini")
 
-    # Processing
-    CHUNK_SIZE = 1000
-    CHUNK_OVERLAP = 200
-    MAX_SEARCH_RESULTS = 7
-    EMBEDDING_DIMENSIONS = 3072
-    EMBEDDING_BATCH_SIZE = 20
-    UPLOAD_BATCH_SIZE = 100
+# Model allocation by task
+STAGE_A_MODEL          = GPT4O_MINI_DEPLOYMENT  # extraction — cost-sensitive
+STAGE_B_MODEL          = GPT4O_MINI_DEPLOYMENT  # classification — cost-sensitive
+OUTPUT_MODEL           = GPT4O_DEPLOYMENT        # synthesis — quality-sensitive
 
-    # Folders
-    OUTPUT_FOLDER = "output"
-    RAW_FOLDER = "output/raw"
-    TABLES_FOLDER = "output/tables"
-    LOGS_FOLDER = "output/logs"
-    MASTER_FOLDER = "output/tables/master"
-    RISK_ID_FOLDER = "output/tables/risk_identification"
-    FINANCIAL_FOLDER = "output/tables/financial"
-    RESPONSES_FOLDER = "output/tables/responses"
-    MANAGEMENT_FOLDER = "output/tables/management"
-    METADATA_FOLDER = "output/tables/metadata"
+# ── Google CSE (Phase 0) ──────────────────────────────────────────────────────
+GOOGLE_CSE_API_KEY     = os.environ["GOOGLE_CSE_API_KEY"]
+GOOGLE_CSE_ID          = os.environ["GOOGLE_CSE_ID"]
 
-    @classmethod
-    def validate(cls):
-        """Validate required environment variables"""
-        required = [
-            "AZURE_OPENAI_KEY",
-            "AZURE_OPENAI_ENDPOINT",
-            "AZURE_SEARCH_ENDPOINT",
-            "AZURE_SEARCH_KEY"
-        ]
-        missing = [var for var in required if not getattr(cls, var)]
-        if missing:
-            raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
-        return True
+# ── Structured APIs (Phase 2) ─────────────────────────────────────────────────
+GCF_API_BASE    = "https://www.greenclimate.fund/projects/api"
+OECD_API_BASE   = "https://stats.oecd.org/SDMX-JSON/data/CRS"
 
-    @classmethod
-    def create_folders(cls):
-        """Create all required output folders"""
-        folders = [
-            cls.OUTPUT_FOLDER,
-            cls.RAW_FOLDER,
-            cls.TABLES_FOLDER,
-            cls.LOGS_FOLDER,
-            cls.MASTER_FOLDER,
-            cls.RISK_ID_FOLDER,
-            cls.FINANCIAL_FOLDER,
-            cls.RESPONSES_FOLDER,
-            cls.MANAGEMENT_FOLDER,
-            cls.METADATA_FOLDER
-        ]
+# ── Active prompt versions ────────────────────────────────────────────────────
+COLLECT_PROMPT_VERSION  = "v1"
+CLASSIFY_PROMPT_VERSION = "v1"
 
-        for folder in folders:
-            Path(folder).mkdir(parents=True, exist_ok=True)
+# ── Paths ─────────────────────────────────────────────────────────────────────
+TAXONOMY_PATH  = Path("_design/taxonomy.yaml")
+SOURCES_PATH   = Path("sources.yaml")
+PROMPTS_DIR    = Path("prompts/")
+TMP_DIR        = Path("tmp/")   # temp downloads — gitignored
+
+# ── Validation thresholds ─────────────────────────────────────────────────────
+AUTO_APPROVE_THRESHOLD = 0.85
+AUTO_REJECT_THRESHOLD  = 0.40
+
+# ── Document limits ───────────────────────────────────────────────────────────
+MAX_DOCUMENT_CHARS = 200_000
+
+# ── Azure AI Search index names ───────────────────────────────────────────────
+INDEX_PASSAGES      = "adaptation-passages"
+INDEX_DOCUMENTS     = "adaptation-documents"
+INDEX_VALIDATION    = "adaptation-validation-log"

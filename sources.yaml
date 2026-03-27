@@ -1,0 +1,228 @@
+# =============================================================================
+# sources.yaml — Source Registry
+# Version 1.1 | March 2026
+# =============================================================================
+# Drives the ingestion scheduler. Each entry defines one source.
+# ingest.py reads this file to discover which adapter to use and how.
+#
+# PHASES:
+#   Phase 0/1: only sources with enabled: true are active
+#   Phase 2:   flip gcf_projects, oecd_crs, cdp_export to enabled: true
+#
+# ADAPTER STRATEGY:
+#   Google CSE is the primary source for all PDFs and HTML pages.
+#   Structured APIs (GCF, OECD) are used ONLY where the source provides
+#   structured JSON/CSV that would be degraded by going through a PDF.
+#   Do not add new adapters without updating PROJECT_BRIEF.md first.
+#
+# FIELDS:
+#   key:             Unique identifier — used as source_key in ingest() calls
+#   adapter:         Adapter class name in adapters/
+#   source_type:     Must match SOURCE_TYPES in schemas/document.py
+#   document_type:   Must match DOCUMENT_TYPES in schemas/document.py
+#   enabled:         false = exists in config but never run by scheduler
+#   schedule:        daily | weekly | fortnightly | monthly | quarterly | manual
+#   sector_hints:    Default sector_relevance tags for all docs from this source
+#   country_hints:   Default country tags (ISO 3166-1 alpha-2)
+#   rate_limit_rpm:  Max requests per minute — adapter enforces this
+#   note:            Human-readable description of what this source covers
+# =============================================================================
+
+version: "1.1"
+
+
+# =============================================================================
+# PHASE 0/1 — ACTIVE SOURCES
+# =============================================================================
+
+sources:
+
+  # ── Corporate reports via direct PDF path ─────────────────────────────────
+  # Used for: PDFs you already have locally, or a known direct URL.
+  # Triggered manually (not by scheduler).
+  corporate_pdf_direct:
+    adapter: CorporatePDFAdapter
+    source_type: corporate_pdf
+    document_type: corporate_report
+    enabled: true
+    schedule: manual
+    sector_hints:
+      - food_agriculture
+      - beverages
+      - food_and_beverage
+    rate_limit_rpm: null          # local files — no rate limit
+    note: >
+      Direct ingestion of a corporate PDF by file path or URL.
+      Use when you already have the file (e.g. documents/ folder)
+      or a known direct link to a report.
+      CLI: python ingest.py --source corporate_pdf_direct --path <path>
+
+  # ── Corporate reports via Google CSE ─────────────────────────────────────
+  # Used for: finding and downloading corporate sustainability/CSRD/TCFD reports.
+  # Two-step adapter: search → download PDF → extract text.
+  google_cse_corporate:
+    adapter: GoogleCSEAdapter
+    source_type: google_cse
+    document_type: corporate_report
+    enabled: true
+    schedule: weekly
+    sector_hints:
+      - food_agriculture
+      - beverages
+      - food_and_beverage
+    rate_limit_rpm: 60
+    note: >
+      Finds and downloads corporate sustainability/TCFD/CSRD reports
+      for food, beverage, and agriculture companies.
+      Targets IR pages, ESMA ESEF filings, CDP disclosures.
+    queries:
+      # Template: {company} is substituted at runtime from a company watchlist
+      - "{company} sustainability report 2024 2025 filetype:pdf"
+      - "{company} TCFD climate report physical risk filetype:pdf"
+      - "{company} CSRD ESRS E1 report 2024 2025 filetype:pdf"
+      - "{company} annual report climate adaptation filetype:pdf"
+    target_companies:
+      # Expand this list as needed — used to substitute {company} in queries
+      - Danone
+      - "Pernod Ricard"
+      - Nestle
+      - Unilever
+      - "AB InBev"
+      - Heineken
+      - "Coca-Cola"
+      - "Diageo"
+      - "Barry Callebaut"
+      - "Olam International"
+
+  # ── Policy and regulatory documents via Google CSE ────────────────────────
+  # Used for: NAPs, EU Adapt guidance, regulatory documents, IPCC materials,
+  #           sector guidance, FAO/CGIAR reports, UNFCCC documents.
+  google_cse_policy:
+    adapter: GoogleCSEAdapter
+    source_type: google_cse
+    document_type: policy
+    enabled: true
+    schedule: weekly
+    sector_hints:
+      - food_agriculture
+      - water
+      - ecosystems
+    rate_limit_rpm: 60
+    note: >
+      Finds policy documents, NAPs, regulatory guidance, and scientific reports
+      relevant to climate adaptation in food/agriculture/beverage sectors.
+      Covers EU Adapt, IPCC, FAO, CGIAR, UNFCCC, national adaptation plans.
+    queries:
+      - "national adaptation plan food agriculture climate 2024 2025 filetype:pdf"
+      - "EU climate adaptation food beverage sector guidance filetype:pdf"
+      - "IPCC climate change food systems agriculture report"
+      - "FAO climate adaptation agriculture food security 2024 filetype:pdf"
+      - "CSRD physical risk food beverage sector guidance filetype:pdf"
+      - "water stress agriculture adaptation practice 2024 filetype:pdf"
+      - "climate resilience supply chain food beverage 2024 filetype:pdf"
+
+  # ── Targeted domain queries via Google CSE ────────────────────────────────
+  # Used for: known high-quality domains where generic queries miss documents.
+  google_cse_targeted:
+    adapter: GoogleCSEAdapter
+    source_type: google_cse
+    document_type: guidance
+    enabled: true
+    schedule: monthly
+    rate_limit_rpm: 60
+    note: >
+      Targets specific high-quality domains known to publish climate adaptation
+      content relevant to food/agriculture. Runs monthly — content updates slowly.
+    domain_queries:
+      # Format: domain + query — adapter constructs "site:{domain} {query}"
+      - domain: "climate-adapt.eea.europa.eu"
+        query: "food agriculture adaptation"
+      - domain: "unfccc.int"
+        query: "food agriculture adaptation national plan"
+      - domain: "fao.org"
+        query: "climate adaptation resilience food 2024"
+      - domain: "cgiar.org"
+        query: "climate change adaptation agriculture"
+      - domain: "greenclimate.fund"
+        query: "food water security agriculture adaptation"
+      - domain: "oecd.org"
+        query: "climate adaptation food agriculture finance"
+
+
+# =============================================================================
+# PHASE 2 — DISABLED UNTIL PHASE 2 (flip enabled: true to activate)
+# =============================================================================
+
+  # ── GCF Project Browser API ───────────────────────────────────────────────
+  # Why direct API (not CSE): returns structured JSON with exact funding amounts,
+  # result areas, countries, and implementation status — pre-structured for
+  # Report 3 (Finance Flow Tracker). Going through a PDF loses this structure.
+  gcf_projects:
+    adapter: GCFAPIAdapter
+    source_type: gcf_api
+    document_type: project_db
+    enabled: false                # Phase 2
+    schedule: fortnightly
+    sector_hints:
+      - food_agriculture
+      - water
+      - ecosystems
+    rate_limit_rpm: 20
+    note: >
+      GCF Project Browser public API. No authentication required.
+      Returns structured project data for adaptation finance tracking.
+      Maps directly to taxonomy finance node and Report 3.
+    api_base_url: "https://www.greenclimate.fund/projects/api"
+    filters:
+      result_areas:
+        - food_and_water_security
+        - livelihoods_and_wellbeing
+        - resilient_infrastructure
+      status:
+        - active
+        - completed
+
+  # ── OECD CRS Finance Flows ────────────────────────────────────────────────
+  # Why direct API (not CSE): structured climate finance flows by instrument
+  # type, recipient country, and sector code — directly comparable to CPI
+  # Global Landscape of Climate Finance. Pre-structured for Report 3.
+  oecd_crs:
+    adapter: OECDAPIAdapter
+    source_type: oecd_api
+    document_type: project_db
+    enabled: false                # Phase 2
+    schedule: fortnightly
+    sector_hints:
+      - food_agriculture
+      - water
+    rate_limit_rpm: 30
+    note: >
+      OECD Creditor Reporting System. Public API, no authentication.
+      Agriculture and water sector climate finance flows.
+      Purpose codes cover food security, irrigation, water supply, agriculture.
+    api_base_url: "https://stats.oecd.org/SDMX-JSON/data/CRS"
+    filters:
+      climate_markers: [1, 2]    # 1=significant, 2=principal objective
+      purpose_code_prefixes:
+        - "311"                  # Agriculture
+        - "140"                  # Water supply and sanitation
+
+  # ── CDP Bulk Export ───────────────────────────────────────────────────────
+  # Why direct (not CSE): CDP responses are already structured answers to
+  # specific climate questions — essentially pre-classified data. If CDP
+  # access is available, this is higher quality than extracting from PDFs.
+  cdp_export:
+    adapter: CDPExportAdapter
+    source_type: cdp_export
+    document_type: corporate_report
+    enabled: false                # Phase 2 — only if CDP access available
+    schedule: quarterly           # CDP data released annually, check quarterly
+    sector_hints:
+      - food_agriculture
+      - beverages
+      - food_and_beverage
+    rate_limit_rpm: 10
+    note: >
+      CDP bulk data export for food, beverage, and agriculture sector.
+      Requires CDP research access. If unavailable, google_cse_corporate
+      covers CDP-disclosing companies via their published PDF responses.
