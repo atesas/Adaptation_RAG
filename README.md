@@ -19,6 +19,7 @@ Three-pillar architecture:
 | **Phase 0** | Complete | Repo restructure, schemas, adapters, tests |
 | **Phase 1** | Complete | `ingest.py`, `taxonomy.py`, `knowledge_store.py`, two-stage extraction |
 | **Phase 2** | Complete | GCF API, OECD API adapters, Streamlit review UI, GitHub Actions |
+| **Phase 3** | Complete | Newsletter, sector brief, company assessment (D1–D8), citations |
 
 ## Repository Structure
 
@@ -36,11 +37,20 @@ schemas/
 prompts/
   collect_v1.txt       # Stage A prompt (collect all climate passages)
   classify_v1.txt      # Stage B prompt (classify each passage)
+outputs/
+  citations.py         # Citation index + appendix rendering
+  newsletter.py        # Sector newsletter generator + CLI
+  sector_brief.py      # D1-D8 sector brief generator + CLI
+  company_assessment.py # D1-D8 company scoring + CLI
+validation/
+  app.py               # Streamlit human review UI
 tests/
   test_schemas.py      # 40 tests — schemas and controlled vocabularies
   test_adapters.py     # 16 tests — CorporatePDFAdapter + GoogleCSEAdapter
   test_taxonomy.py     # 24 tests — TaxonomyLoader
   test_extractor.py    # 20 tests — Stage A/B, triage, build_classified_passage
+  test_knowledge_store.py # 23 tests — KnowledgeStore (mocked Azure)
+  test_outputs.py      # 31 tests — citations, newsletter, brief, assessment
 _design/               # Read-only design specs and interfaces
 config.py              # Single source for all env var reads
 taxonomy.py            # TaxonomyLoader singleton — loads _design/taxonomy.yaml
