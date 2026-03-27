@@ -1,0 +1,234 @@
+# =============================================================================
+# sources.yaml — Source Registry
+# =============================================================================
+# Drives the ingestion scheduler. Each entry defines one source.
+# ingest.py reads this file to discover adapters and scheduling cadence.
+#
+# FIELDS PER ENTRY:
+#   key:          Unique identifier. Used as source_key in ingest() calls.
+#   adapter:      Adapter class name. Must exist in adapters/ directory.
+#   source_type:  Must match SOURCE_TYPES in schemas/document.py
+#   enabled:      true/false — disabled sources are skipped by scheduler
+#   schedule:     Cron expression OR one of: daily, weekly, fortnightly, monthly, quarterly
+#   document_type: Default DOCUMENT_TYPES value for this source
+#   sector_hints: Default sector tags applied to all documents from this source
+#   country_hints: Default country tags (ISO 3166-1 alpha-2)
+#   rate_limit_rpm: Max requests per minute to this source
+#   auth_env_var: Environment variable holding the API key (if needed)
+#   queries:      List of query templates (for search-based adapters)
+#                 {taxonomy_term} is substituted with taxonomy node labels at runtime
+#
+# =============================================================================
+
+version: "1.0"
+
+sources:
+
+  # ── LAYER 1a: Google CSE ───────────────────────────────────────────────────
+
+  google_cse_policy:
+    adapter: GoogleCSEAdapter
+    source_type: google_cse
+    enabled: true
+    schedule: weekly
+    document_type: policy
+    sector_hints: [food_agriculture, beverages, water]
+    rate_limit_rpm: 60
+    auth_env_var: GOOGLE_CSE_API_KEY
+    cse_id_env_var: GOOGLE_CSE_ID
+    queries:
+      - "climate adaptation food agriculture 2024 2025"
+      - "physical climate risk food supply chain CSRD"
+      - "water stress drought agriculture adaptation"
+      - "EU climate adaptation policy food beverage"
+      - "CSRD physical risk disclosure food company"
+
+  google_cse_corporate:
+    adapter: GoogleCSEAdapter
+    source_type: google_cse
+    enabled: true
+    schedule: weekly
+    document_type: corporate_report
+    sector_hints: [food_agriculture, beverages, food_and_beverage]
+    rate_limit_rpm: 60
+    auth_env_var: GOOGLE_CSE_API_KEY
+    cse_id_env_var: GOOGLE_CSE_ID
+    target_domains:
+      - danone.com
+      - pernod-ricard.com
+      - nestle.com
+      - unilever.com
+      - abinbev.com
+      - heineken.com
+    queries:
+      - "site:{domain} climate adaptation annual report 2024 2025 filetype:pdf"
+      - "site:{domain} TCFD CSRD physical risk report filetype:pdf"
+
+  # ── LAYER 1b: Exa.ai neural search ────────────────────────────────────────
+
+  exa_similar_naps:
+    adapter: ExaSearchAdapter
+    source_type: exa_search
+    enabled: true
+    schedule: monthly
+    document_type: policy
+    sector_hints: [food_agriculture, water]
+    rate_limit_rpm: 30
+    auth_env_var: EXA_API_KEY
+    mode: similar  # "find more documents like this seed"
+    seed_urls:
+      - "https://unfccc.int/topics/adaptation-and-resilience/the-big-picture/national-adaptation-plans"
+
+  # ── LAYER 2: Structured APIs ───────────────────────────────────────────────
+
+  gcf_projects:
+    adapter: StructuredAPIAdapter
+    source_type: gcf_api
+    enabled: true
+    schedule: fortnightly
+    document_type: project_db
+    sector_hints: [food_agriculture, water, ecosystems]
+    rate_limit_rpm: 20
+    api_base_url: "https://www.greenclimate.fund/projects/api"
+    auth_env_var: null  # GCF API is public
+    filters:
+      result_areas: ["food_and_water_security", "livelihoods_and_wellbeing"]
+      status: ["active", "completed"]
+
+  oecd_crs:
+    adapter: StructuredAPIAdapter
+    source_type: oecd_api
+    enabled: true
+    schedule: fortnightly
+    document_type: project_db
+    sector_hints: [food_agriculture, water]
+    rate_limit_rpm: 30
+    api_base_url: "https://stats.oecd.org/SDMX-JSON/data/CRS"
+    auth_env_var: null
+    filters:
+      purpose_codes: ["31110", "31120", "31130", "31140", "31150", "31161", "31162", "31163", "31164", "31165", "31166", "31181", "31182", "31191", "31192", "31193", "31194", "31195", "31210", "31220", "31261", "31281", "31282", "31291", "14010", "14015", "14020", "14021", "14022", "14030", "14031", "14032", "14040", "14050", "14081", "14082"]
+      climate_marker: [1, 2]  # 1=significant, 2=principal objective
+
+  world_bank_projects:
+    adapter: StructuredAPIAdapter
+    source_type: world_bank_api
+    enabled: true
+    schedule: fortnightly
+    document_type: project_db
+    sector_hints: [food_agriculture, water]
+    rate_limit_rpm: 60
+    api_base_url: "https://search.worldbank.org/api/v2/projects"
+    auth_env_var: null
+    filters:
+      theme_codes: ["79", "80", "81", "82"]  # Climate change themes
+      sector_codes: ["AX", "AB", "AC", "AD", "AE", "AF"]  # Agriculture sectors
+
+  unfccc_ndc:
+    adapter: StructuredAPIAdapter
+    source_type: unfccc_api
+    enabled: true
+    schedule: monthly
+    document_type: policy
+    rate_limit_rpm: 10
+    api_base_url: "https://ndcregistry.unfccc.int/api"
+    auth_env_var: null
+    note: "NDC Registry bulk download — covers all submitted NDCs"
+
+  # ── LAYER 3: Academic literature ──────────────────────────────────────────
+
+  semantic_scholar:
+    adapter: AcademicAdapter
+    source_type: semantic_scholar
+    enabled: true
+    schedule: monthly
+    document_type: academic
+    sector_hints: [food_agriculture, water, beverages]
+    rate_limit_rpm: 100
+    auth_env_var: SEMANTIC_SCHOLAR_API_KEY
+    queries:
+      - "climate adaptation food systems agriculture"
+      - "physical climate risk supply chain food"
+      - "water stress agriculture adaptation"
+      - "drought resilience crops"
+      - "heat stress food production"
+    open_access_only: true
+    min_citation_count: 5
+
+  openalexAPI:
+    adapter: AcademicAdapter
+    source_type: openalexAPI
+    enabled: true
+    schedule: monthly
+    document_type: academic
+    sector_hints: [food_agriculture, water]
+    rate_limit_rpm: 100
+    auth_env_var: null  # OpenAlex is free
+    queries:
+      - "climate adaptation agriculture food security"
+      - "physical risk food value chain"
+
+  # ── LAYER 4: Targeted site crawls ─────────────────────────────────────────
+
+  eu_adapt:
+    adapter: PlaywrightScraperAdapter
+    source_type: playwright_scrape
+    enabled: true
+    schedule: quarterly
+    document_type: policy
+    country_hints: [EU]
+    sector_hints: [food_agriculture]
+    rate_limit_rpm: 10
+    start_url: "https://climate-adapt.eea.europa.eu"
+    url_patterns:
+      - "/countries-regions/countries/"
+      - "/knowledge/tools/adaptation-support-tool"
+    note: "EU Adapt sector guidance documents"
+
+  esma_esef:
+    adapter: PlaywrightScraperAdapter
+    source_type: playwright_scrape
+    enabled: true
+    schedule: quarterly
+    document_type: regulatory
+    rate_limit_rpm: 5
+    start_url: "https://filings.xbrl.org"
+    note: "ESMA ESEF XBRL filings — CSRD Wave 1 companies"
+    sector_filter: [food_and_beverage, beverages]
+
+  cdp_disclosures:
+    adapter: PlaywrightScraperAdapter
+    source_type: cdp_export
+    enabled: true
+    schedule: quarterly
+    document_type: corporate_report
+    sector_hints: [food_agriculture, beverages, food_and_beverage]
+    rate_limit_rpm: 5
+    start_url: "https://www.cdp.net/en/responses"
+    note: "CDP 2024 questionnaire responses — food and beverage sector"
+
+  # ── LAYER 5: News and event monitoring ────────────────────────────────────
+
+  rss_climate_news:
+    adapter: RSSMonitorAdapter
+    source_type: rss_news
+    enabled: true
+    schedule: daily
+    document_type: news
+    rate_limit_rpm: 60
+    feeds:
+      - url: "https://www.carbonbrief.org/feed"
+        name: "Carbon Brief"
+      - url: "https://www.climatechangenews.com/feed"
+        name: "Climate Home News"
+      - url: "https://www.iisd.org/news/feed"
+        name: "IISD Reporting Services"
+    keyword_filters:
+      - "food"
+      - "agriculture"
+      - "beverage"
+      - "drought"
+      - "flood"
+      - "water stress"
+      - "supply chain"
+      - "CSRD"
+      - "adaptation"

@@ -1,0 +1,1001 @@
+# ============================================================================
+# ADAPTATION INTELLIGENCE PLATFORM — TAXONOMY DICTIONARY
+# Version: 1.0 | March 2026
+# ============================================================================
+#
+# STRUCTURE:
+#   Each node has:
+#     label:        Human-readable name
+#     definition:   What belongs here
+#     seed_source:  Which external framework this comes from
+#     seed_ref:     Specific reference within that framework
+#     external_mappings: Equivalent codes in other frameworks
+#     examples:     Concrete example passages that belong here
+#     exclusions:   What does NOT belong here (reduces misclassification)
+#     extensions:   Data-driven additions (empty at seed layer; populated via evolution)
+#
+# LAYER RULES:
+#   Seed layer:      entries defined before seeing any corpus data
+#                    seed_source is ALWAYS populated
+#   Extension layer: entries added via schema evolution process
+#                    seed_mapping MUST reference nearest seed parent
+#                    added, frequency, and reviewer MUST be populated
+#
+# PASSAGE-LEVEL FIELDS (applied to every classified passage — not in this file):
+#   category, subcategory, iro_type, value_chain_position, entities,
+#   time_horizon, geographic_scope, sector_relevance, evidence_quality,
+#   taxonomy_eligible, esrs_hazard_ref, seed_category, confidence,
+#   content_hash, source_doc_id, page_ref, validation_status
+# ============================================================================
+
+taxonomy_version: "1.0"
+last_updated: "2026-03"
+sector_focus:
+  - food_and_beverage
+  - agriculture_food_systems
+  - beverages
+  - retail_consumer_goods
+
+
+# ============================================================================
+# NODE 1: HAZARDS
+# Source: ESRS E1 Annex 1 (AR11) — mandatory vocabulary for CSRD reporters
+#         Supplemented by NGFS Physical Hazard Taxonomy (financial regulators)
+#         and IPCC AR6 WG2 Chapter 16 (compound events)
+# ============================================================================
+
+hazards:
+  label: "Climate-Related Physical Hazards"
+  definition: >
+    Natural climate events or gradual shifts that may create physical risks
+    for companies, supply chains, or communities. Use ESRS E1 AR11 vocabulary
+    exactly — CSRD-reporting companies must report against these categories.
+  seed_source: "ESRS E1 AR11 (EFRAG 2023)"
+  note: >
+    This is the most important seed layer for corporate extraction. Every CSRD-
+    reporting company must assess and disclose against these hazard categories.
+    Use the ESRS label as the subcategory value — do not rephrase or generalise.
+
+  physical_acute:
+    label: "Acute Physical Hazards"
+    definition: "Temporary or event-related extreme weather and climate events"
+    seed_source: "ESRS E1 AR11 — Acute hazard table"
+
+    extreme_heat_event:
+      label: "Extreme heat event / heatwave"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 row 1"
+      ngfs_mapping: "heat_stress_acute"
+      ipcc_ar6_mapping: "extreme_heat"
+      examples:
+        - "Operations at our Spanish facility were disrupted by three heatwaves exceeding 45°C"
+        - "Heatwave events in key growing regions reduced grape yields by 18%"
+      exclusions:
+        - "Gradual temperature rise over years — use temperature_shift (chronic)"
+
+    cold_spell_frost:
+      label: "Cold spell / frost"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 row 2"
+      ngfs_mapping: "cold_stress"
+      examples:
+        - "Late spring frosts destroyed 40% of the almond crop in our French supplier region"
+      exclusions:
+        - "Permafrost thawing — use permafrost_thaw (chronic)"
+
+    wildfire:
+      label: "Wildfire"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 row 3"
+      ngfs_mapping: "wildfire"
+      ipcc_ar6_mapping: "wildfire"
+      examples:
+        - "Wildfires in Northern California threatened our walnut sourcing region"
+        - "Smoke contamination from nearby fires affected our outdoor fermentation facilities"
+
+    storm_wind:
+      label: "Storm (wind, including tropical cyclone, tornado, hailstorm)"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 rows 4-7"
+      ngfs_mapping: "wind_storm"
+      sub_types:
+        - tropical_cyclone
+        - tornado
+        - hailstorm
+        - extratropical_storm
+      examples:
+        - "Tropical cyclone Freddy disrupted our Madagascar vanilla supply chain"
+        - "Hailstorm damage to vineyards resulted in 25% crop loss"
+
+    flood_riverine:
+      label: "Riverine flooding (fluvial flood)"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 row 8"
+      ngfs_mapping: "riverine_flood"
+      examples:
+        - "The 2023 flooding of the Rhine disrupted our logistics corridor for 3 weeks"
+        - "Riverine flooding at our Thai rice suppliers affected procurement volumes"
+
+    flood_coastal:
+      label: "Coastal flooding"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 row 9"
+      ngfs_mapping: "coastal_flood"
+      examples:
+        - "Coastal flooding risk at our Rotterdam distribution hub is assessed annually"
+
+    flood_pluvial:
+      label: "Pluvial flooding (surface water / flash flood)"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 row 10"
+      ngfs_mapping: "pluvial_flood"
+      examples:
+        - "Flash flooding from extreme rainfall events damaged our warehouse in Seville"
+
+    glacier_outburst:
+      label: "Glacial lake outburst flood"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 row 11"
+      examples:
+        - "GLOF risk assessed for our Andean water sourcing operations"
+      sector_relevance:
+        - beverages
+        - agriculture_food_systems
+
+    landslide:
+      label: "Landslide"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 row 12"
+      examples:
+        - "Landslide risk threatens road access to our mountain coffee sourcing region"
+
+    drought:
+      label: "Drought"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 row 13"
+      ngfs_mapping: "drought"
+      ipcc_ar6_mapping: "drought"
+      examples:
+        - "Severe drought in the Po Valley cut wheat availability by 30% in 2022"
+        - "Our water risk assessment identifies drought as the primary acute hazard for 6 facilities"
+
+  physical_chronic:
+    label: "Chronic Physical Hazards"
+    definition: "Gradual, persistent shifts in climate conditions over years or decades"
+    seed_source: "ESRS E1 AR11 — Chronic hazard table"
+
+    temperature_shift:
+      label: "Changing temperature (average temperature rise)"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 chronic row 1"
+      ngfs_mapping: "heat_stress_chronic"
+      ipcc_ar6_mapping: "mean_temperature_increase"
+      examples:
+        - "Rising mean temperatures are shifting suitable growing zones for key ingredients northward"
+        - "Our long-term sourcing strategy accounts for 1.5–4°C warming scenarios"
+
+    changing_precipitation:
+      label: "Changing precipitation patterns and variability"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 chronic row 2"
+      examples:
+        - "Increased precipitation variability in our cocoa sourcing regions creates harvest uncertainty"
+        - "Longer dry seasons in West Africa affect sugar cane irrigation requirements"
+
+    ocean_acidification:
+      label: "Ocean acidification"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 chronic row 3"
+      sector_relevance:
+        - seafood
+        - beverages
+      examples:
+        - "Ocean acidification threatens shellfish supply chains in our seafood category"
+
+    salinisation:
+      label: "Salinisation of water bodies, soil or infrastructure"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 chronic row 4"
+      examples:
+        - "Salinisation of groundwater in coastal Bangladesh affects our shrimp sourcing"
+        - "Salt intrusion into agricultural land reduces crop productivity in our delta sourcing regions"
+
+    sea_level_rise:
+      label: "Sea level rise"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 chronic row 5"
+      ngfs_mapping: "sea_level_rise"
+      examples:
+        - "Our coastal warehousing and port operations face long-term sea level rise risk under RCP 8.5"
+
+    water_stress:
+      label: "Water stress (freshwater availability)"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 chronic row 6"
+      ngfs_mapping: "water_stress"
+      ipcc_ar6_mapping: "water_availability"
+      inform_mapping: "water_stress"
+      examples:
+        - "Seven of our manufacturing sites are located in high or extremely high water-stressed areas"
+        - "Water availability risk in the Murray-Darling Basin threatens our wine sourcing"
+      sector_relevance:
+        - beverages
+        - agriculture_food_systems
+        - food_and_beverage
+
+    soil_degradation:
+      label: "Soil degradation (erosion, nutrient depletion, desertification)"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 chronic row 7"
+      examples:
+        - "Soil erosion in our key wheat sourcing regions is reducing long-term yield potential"
+        - "Desertification risk in sub-Saharan Africa affects our sustainable sourcing commitments"
+
+    permafrost_thaw:
+      label: "Permafrost thawing"
+      seed_source: "ESRS E1 AR11"
+      seed_ref: "ESRS E1 AR11 chronic row 8"
+      examples:
+        - "Infrastructure damage from permafrost thaw affects cold chain logistics in Siberia"
+
+    biodiversity_loss:
+      label: "Biodiversity loss and ecosystem degradation"
+      seed_source: "ESRS E1 AR11 + ESRS E4"
+      seed_ref: "ESRS E1 AR11 chronic row 9 / ESRS E4"
+      ipcc_ar6_mapping: "ecosystem_degradation"
+      examples:
+        - "Pollinator decline threatens our dependent agricultural supply chains"
+        - "Deforestation-driven ecosystem collapse in our palm oil sourcing regions"
+
+  extensions:
+    label: "Data-driven hazard extensions"
+    note: "Entries below passed schema evolution review. Each carries seed_mapping."
+
+    compound_heat_drought:
+      label: "Compound heat-drought event"
+      seed_mapping: "hazards/physical_acute/extreme_heat_event + hazards/physical_chronic/water_stress"
+      ipcc_ar6_mapping: "compound_events (IPCC AR6 Ch16)"
+      definition: >
+        Simultaneous or sequential occurrence of extreme heat and drought conditions.
+        Adaptation responses differ from separate heat or drought events — both must
+        be addressed together. Do NOT double-classify as separate heat + drought.
+      added: "2025-Q2"
+      frequency: 847
+      reviewer: "domain_expert_1"
+      examples:
+        - "The 2022 heat-drought compound event in Europe severely impacted multiple crops simultaneously"
+
+
+# ============================================================================
+# NODE 2: IRO TYPE (Double Materiality Axis)
+# Source: ESRS 2 IRO Framework (EFRAG 2023)
+# Required: Every classified passage must carry an iro_type value
+# ============================================================================
+
+iro_type:
+  label: "Impact, Risk, Opportunity Type"
+  definition: >
+    Classifies every passage along the CSRD Double Materiality Assessment axes.
+    Impact materiality = outside-in (how climate affects the company financially).
+    Impact materiality = inside-out (how the company affects climate/communities).
+    EVERY passage receives exactly one iro_type value.
+  seed_source: "ESRS 2 IRO Framework (EFRAG 2023)"
+  seed_ref: "ESRS 2 SBM-3, IRO-1"
+
+  impact:
+    label: "Impact (Company's effect on climate and communities)"
+    definition: "Inside-out materiality: how the company's operations affect climate, ecosystems, or communities"
+
+    actual_negative:
+      label: "Actual negative impact"
+      definition: "Confirmed, ongoing negative effect the company is causing"
+      examples:
+        - "Our Scope 3 emissions from ingredient agriculture total 85% of our value chain footprint"
+        - "Deforestation in our palm oil supply chain is a confirmed material impact"
+
+    potential_negative:
+      label: "Potential negative impact"
+      definition: "Possible future negative effect, not yet confirmed as occurring"
+      examples:
+        - "Expansion into water-stressed regions could increase our freshwater depletion impact"
+
+    actual_positive:
+      label: "Actual positive impact / contribution"
+      definition: "Confirmed beneficial contribution to climate resilience or communities"
+      examples:
+        - "Our regenerative agriculture programme has improved soil carbon in 12,000 hectares"
+        - "Community early warning systems funded through our adaptation programme reached 50,000 farmers"
+
+  risk:
+    label: "Risk (Financial risk to the company from climate)"
+    definition: "Outside-in materiality: how climate change creates financial risks for the company"
+
+    physical_acute_risk:
+      label: "Physical risk — acute"
+      definition: "Financial risk from acute hazard events (map to hazards/physical_acute/*)"
+      examples:
+        - "A 1-in-100-year flood event could damage assets with a replacement value of €340m"
+
+    physical_chronic_risk:
+      label: "Physical risk — chronic"
+      definition: "Financial risk from gradual chronic hazard shifts (map to hazards/physical_chronic/*)"
+      examples:
+        - "Long-term water stress at 7 facilities represents €180m of assets at risk by 2040"
+
+    transition_risk:
+      label: "Transition risk"
+      definition: "Financial risk from regulatory, market, or technological changes in the transition to low-carbon economy"
+      sub_types:
+        policy_legal:
+          label: "Policy and legal"
+          examples:
+            - "Carbon pricing mechanisms in our key markets could increase operating costs by €45m annually"
+            - "CSRD compliance costs are estimated at €2.8m for our first reporting year"
+        technology:
+          label: "Technology"
+          examples:
+            - "Failure to adopt precision irrigation technology risks competitive disadvantage"
+        market:
+          label: "Market and reputational"
+          examples:
+            - "Changing consumer preferences away from water-intensive products pose revenue risk"
+        stranded_assets:
+          label: "Stranded assets"
+          examples:
+            - "Vineyards in regions projected to become unsuitable for wine production by 2050"
+
+  opportunity:
+    label: "Opportunity (Climate-related upside for the company)"
+    definition: "How climate change creates business opportunities"
+    seed_source: "ESRS E1 + TCFD Opportunities"
+
+    resource_efficiency:
+      label: "Resource use efficiency opportunity"
+      examples:
+        - "Water recycling investment will reduce operating costs by €3m annually"
+
+    energy_source:
+      label: "Energy source / renewable energy opportunity"
+      examples:
+        - "On-site solar generation at our facilities will reduce energy costs and improve resilience"
+
+    products_services:
+      label: "Products and services opportunity"
+      examples:
+        - "Consumer demand for drought-resilient ingredients is growing 15% annually in our segment"
+
+    markets:
+      label: "Access to new markets opportunity"
+      examples:
+        - "Green Bond issuance will open access to sustainability-linked financing at preferential rates"
+
+    resilience:
+      label: "Resilience and adaptive capacity opportunity"
+      examples:
+        - "Supplier diversification programme reduces single-source dependency and improves resilience"
+
+
+# ============================================================================
+# NODE 3: IMPACTS
+# Source: TCFD (financial impacts), ESRS E1 E1-9, ESRS E2 (pollution-climate)
+# ============================================================================
+
+impacts:
+  label: "Business and Value Chain Impacts"
+  definition: >
+    The concrete effects of climate hazards or transition risks on the company's
+    operations, supply chain, and finances. Note: 'impacts' here means effects ON
+    the company, not the company's impact on climate (that is iro_type/impact).
+
+  operations:
+    label: "Operational disruption"
+    seed_source: "TCFD Strategy"
+    examples:
+      - "Flooding at our Antwerp production facility resulted in 3 weeks of downtime"
+      - "Heat stress reduced worker productivity at outdoor facilities by an estimated 12%"
+
+  supply_chain:
+    label: "Supply chain disruption"
+    seed_source: "TCFD Strategy + CSDDD upstream"
+    examples:
+      - "Drought in our Australian barley sourcing region reduced available volumes by 35%"
+      - "Hurricane damage to our Mexican agave supplier required emergency sourcing"
+
+  financial:
+    label: "Financial impact"
+    seed_source: "ESRS E1 E1-9, TCFD"
+
+    capex_at_risk:
+      label: "Capital expenditure at risk"
+      examples:
+        - "€240m of planned facility investment is in areas identified as high flood risk"
+
+    opex_increase:
+      label: "Operating cost increase"
+      examples:
+        - "Water scarcity is increasing treatment costs at our South African facilities"
+
+    revenue_loss:
+      label: "Revenue at risk"
+      examples:
+        - "Net revenue at risk from physical hazards is estimated at 8% of turnover by 2035"
+
+    stranded_assets:
+      label: "Stranded or impaired assets"
+      examples:
+        - "Our Napa Valley facilities face potential stranded asset risk under 4°C warming scenarios"
+
+    insurance:
+      label: "Insurance availability and cost"
+      examples:
+        - "Flood insurance for our coastal distribution hubs has increased 340% since 2018"
+
+  regulatory:
+    label: "Regulatory and compliance impact"
+    seed_source: "ESRS E1, CSRD, EU Taxonomy"
+    examples:
+      - "CSRD disclosure requirements will require asset-level physical risk data by 2025"
+      - "EU Taxonomy alignment review identified 3 activities with adaptation TSC requirements"
+
+  biodiversity:
+    label: "Biodiversity and ecosystem service impact"
+    seed_source: "ESRS E4, TNFD"
+    examples:
+      - "Our dependence on pollination services creates material exposure to biodiversity loss"
+
+  water:
+    label: "Water access and quality impact"
+    seed_source: "ESRS E3"
+    examples:
+      - "Declining groundwater levels at our French facility threaten production water security"
+
+  health_safety:
+    label: "Worker health and safety impact"
+    seed_source: "ESRS S1, ESRS S2"
+    examples:
+      - "Extreme heat is increasing heat illness incidence rates at our outdoor harvest operations"
+
+  pollution_climate:
+    label: "Pollution-climate interaction impact (D8)"
+    seed_source: "ESRS E2"
+    note: "Apply only for chemicals, mining, energy, food manufacturing, agriculture sectors"
+    examples:
+      - "Flooding of our wastewater treatment facility creates pollution spillover risk"
+      - "Drought-induced concentration of pollutants in water bodies affects our intake quality"
+
+
+# ============================================================================
+# NODE 4: RESPONSES (Adaptation Actions)
+# Source: IPCC AR6 WG2, EU Taxonomy TSC, GCF activity taxonomy
+# ============================================================================
+
+responses:
+  label: "Climate Adaptation Responses"
+  definition: >
+    Actions the company or its value chain partners have taken, are taking,
+    or plan to take in response to physical climate risks. Mitigation
+    (emissions reduction) is logged here if encountered but is out of scope
+    for primary analysis.
+
+  adaptation:
+    label: "Physical adaptation measures"
+    seed_source: "IPCC AR6 WG2 + EU Taxonomy TSC Climate Adaptation"
+
+    infrastructure_resilience:
+      label: "Infrastructure and facility resilience investment"
+      examples:
+        - "Flood barriers installed at our Hamburg facility at a cost of €4.2m"
+        - "Cooling systems upgraded at 8 production facilities to address heat stress"
+
+    water_efficiency:
+      label: "Water efficiency and conservation measures"
+      examples:
+        - "Closed-loop water recycling reduces our facility water withdrawal by 35%"
+        - "Drip irrigation deployment across our contracted growers saves 2.4 billion litres annually"
+      sector_relevance:
+        - beverages
+        - food_and_beverage
+
+    heat_management:
+      label: "Heat stress management"
+      examples:
+        - "Shift schedule adjustments to avoid peak heat hours for outdoor workers"
+        - "Cool-roof installation on 12 distribution warehouses"
+
+    crop_variety_adaptation:
+      label: "Crop variety and seed adaptation"
+      examples:
+        - "Transition to drought-tolerant wheat varieties across our contracted grower base"
+        - "Investment in heat-resistant barley breeding programme with research partner"
+      sector_relevance:
+        - agriculture_food_systems
+        - food_and_beverage
+
+    digital_early_warning:
+      label: "Digital and satellite-based early warning systems"
+      seed_source: "IPCC AR6 + GCF Enabling Environment"
+      seed_ref: "Data-driven extension — added 2025-Q2"
+      definition: >
+        Digital, IoT, or satellite-based systems for monitoring climate hazards and
+        triggering early action. Distinct from traditional EWS: different cost,
+        scalability, and evidence base. Satellite verification possible.
+      examples:
+        - "Real-time drought monitoring via satellite across our ingredient sourcing regions"
+        - "Flood sensor network at our logistics hubs with automated alert system"
+
+    insurance_risk_transfer:
+      label: "Insurance and risk transfer mechanisms"
+      examples:
+        - "Parametric drought insurance covering 85% of our contracted grain volume"
+        - "Multi-peril crop insurance programme with 3,400 smallholder farmers"
+
+  mitigation:
+    label: "GHG emissions reduction (log but out of primary scope)"
+    seed_source: "IPCC AR6 WG3"
+    note: "Capture if encountered; tag as mitigation; do not classify as adaptation"
+
+  nature_based:
+    label: "Nature-based solutions (NbS)"
+    seed_source: "IPCC AR6 WG2 + GCF"
+    examples:
+      - "Watershed restoration programme covering 15,000 hectares in our sourcing region"
+      - "Agroforestry integration across contracted farms reduces heat stress and erosion"
+      - "Mangrove restoration at coastal facilities provides storm protection"
+
+  supply_chain_resilience:
+    label: "Supply chain adaptation and resilience"
+    seed_source: "TCFD Strategy + CSDDD upstream"
+    examples:
+      - "Geographic diversification of cocoa sourcing across three continents"
+      - "Dual-sourcing policy for all ingredients classified as high climate risk"
+      - "Long-term supply agreements with climate risk clauses and force majeure provisions"
+
+  financial_instruments:
+    label: "Financial instruments for adaptation"
+    seed_source: "CPI Global Landscape of Climate Finance"
+    examples:
+      - "€500m green bond issued to fund adaptation-eligible CapEx"
+      - "Sustainability-linked loan with water efficiency KPI"
+      - "Parametric insurance covering €120m of crop value"
+
+  taxonomy_aligned_capex:
+    label: "EU Taxonomy-aligned adaptation CapEx"
+    seed_source: "EU Taxonomy Climate Delegated Act — Adaptation TSC"
+    definition: >
+      Investment explicitly assessed against EU Taxonomy Technical Screening Criteria
+      for climate change adaptation. Requires: (a) forward-looking climate risk assessment,
+      (b) DNSH check against other five environmental objectives, (c) activity eligible
+      under Taxonomy Climate Delegated Act.
+    fields:
+      - activity_code: "EU Taxonomy activity code from Delegated Act"
+      - dnsh_status: "assessed | compliant | non_compliant"
+      - capex_amount: "monetary amount"
+    examples:
+      - "€180m CapEx assessed as Taxonomy-aligned under activity 3.2 (flood protection)"
+
+
+# ============================================================================
+# NODE 5: GOVERNANCE
+# Source: TCFD Governance pillar + OECD/UNGP six-step due diligence (CSDDD)
+# ============================================================================
+
+governance:
+  label: "Climate Governance"
+  seed_source: "TCFD Governance + ESRS 2 GOV-3 + OECD/UNGP CSDDD"
+
+  board_oversight:
+    label: "Board and executive oversight of climate risk"
+    seed_source: "TCFD Governance, ESRS 2 GOV-3"
+    examples:
+      - "The Board's Sustainability Committee reviews physical risk assessments quarterly"
+      - "CEO climate KPI linked to 15% of long-term incentive plan"
+
+  risk_management:
+    label: "Climate risk management systems"
+    seed_source: "TCFD Risk Management, ESRS E1 IRO-1"
+    examples:
+      - "Physical climate risk integrated into enterprise risk register since 2022"
+      - "Annual scenario analysis covers RCP 2.6, 4.5, and 8.5 pathways"
+
+  stakeholder_engagement:
+    label: "Stakeholder and community engagement"
+    seed_source: "TCFD Strategy + CSDDD step 5"
+    examples:
+      - "Smallholder farmer climate resilience training programme in Ivory Coast"
+      - "Community water management forum established in water-stressed sourcing regions"
+
+  targets_kpis:
+    label: "Climate adaptation targets and KPIs"
+    seed_source: "ESRS E1 E1-3, ESRS E1 E1-9"
+    examples:
+      - "Target: 100% of key ingredients sourced from climate-resilient supply chains by 2030"
+      - "KPI: water withdrawal per unit of production to be reduced 30% by 2028"
+
+  csddd_steps:
+    label: "CSDDD due diligence procedural steps"
+    seed_source: "OECD Due Diligence Guidance for Responsible Business Conduct (six-step)"
+    note: "Classify governance passages into the CSDDD step they correspond to"
+
+    step_1_embed_policies:
+      label: "Step 1: Embed responsible business conduct in policies"
+      examples:
+        - "Climate risk policy updated to include CSDDD supply chain due diligence requirements"
+
+    step_2_map_identify:
+      label: "Step 2: Identify and assess adverse climate impacts in value chain"
+      examples:
+        - "Supplier climate risk mapping completed for 85% of direct spend by volume"
+        - "CSDDD scoping exercise identified 12 high-risk upstream sourcing regions"
+
+    step_3_prevent_mitigate:
+      label: "Step 3: Cease, prevent or mitigate adverse climate impacts"
+      examples:
+        - "Supplier improvement plans implemented for 34 farms in high water-stress zones"
+
+    step_4_track_monitor:
+      label: "Step 4: Track implementation and results"
+      examples:
+        - "Annual supplier climate resilience audit covers 200+ direct suppliers"
+
+    step_5_communicate:
+      label: "Step 5: Communicate how impacts are addressed"
+      examples:
+        - "CSDDD-aligned supply chain transparency report published annually"
+
+    step_6_remediate:
+      label: "Step 6: Provide for or cooperate in remediation"
+      examples:
+        - "Farmer support fund established to compensate climate-affected contracted growers"
+
+
+# ============================================================================
+# NODE 6: VALUE CHAIN POSITION
+# Source: CSDDD "Chain of Activities" (Directive EU 2024/1760)
+# Required: Every passage receives a value_chain_position value
+# ============================================================================
+
+value_chain_position:
+  label: "Value Chain Position"
+  definition: >
+    Where in the company's chain of activities does this passage's risk, impact,
+    or response occur? Required on every passage for CSDDD compliance tracking.
+  seed_source: "CSDDD Directive (EU) 2024/1760, Article 3"
+
+  own_operations:
+    label: "Company's own operations"
+    examples:
+      - "Our production facility in Lyon faces flood risk"
+
+  upstream:
+    label: "Upstream supply chain"
+    definition: "Activities relating to the manufacture of goods or provision of services to the company"
+    seed_source: "CSDDD Article 3 — upstream chain definition"
+
+    tier_1_supplier:
+      label: "Tier 1 direct suppliers"
+      examples:
+        - "Our direct ingredient suppliers in Morocco face water stress risk"
+
+    tier_2_plus:
+      label: "Tier 2+ indirect suppliers"
+      examples:
+        - "Raw material extraction at sub-suppliers in DRC faces compound climate risk"
+
+    raw_material_origin:
+      label: "Raw material origin / commodity level"
+      examples:
+        - "Cocoa growing regions in Ivory Coast face increasing drought frequency"
+        - "Coffee production in Ethiopia is exposed to temperature shift risks"
+
+  downstream:
+    label: "Downstream value chain"
+    definition: "Transportation, distribution, and storage activities for the company's products"
+    seed_source: "CSDDD Article 3 — downstream chain definition"
+    note: "Customers and consumers are NOT included per CSDDD. CSRD covers broader downstream."
+
+    distribution:
+      label: "Distribution and logistics"
+      examples:
+        - "Our cold chain distribution network faces heat stress risk in southern Europe"
+
+    transport:
+      label: "Transport routes"
+      examples:
+        - "Climate-driven disruption to Rhine shipping routes affects our logistics"
+
+    storage:
+      label: "Downstream storage and warehousing"
+      examples:
+        - "Third-party warehouse in coastal Bangladesh faces flood and salinisation risk"
+
+
+# ============================================================================
+# NODE 7: SCENARIOS
+# Source: IPCC AR6 (physical), NGFS (financial transition)
+# ============================================================================
+
+scenarios:
+  label: "Climate Scenarios Referenced"
+  definition: "Which climate scenario or pathway is referenced in the passage"
+
+  physical:
+    label: "Physical climate scenarios (emissions pathways)"
+    seed_source: "IPCC AR6 SSP framework / RCP framework"
+
+    ssp1_19:
+      label: "SSP1-1.9 (~1.5°C) / RCP 2.6"
+      note: "Low emissions, strong mitigation. Paris-aligned."
+    ssp1_26:
+      label: "SSP1-2.6 (~2°C)"
+    ssp2_45:
+      label: "SSP2-4.5 (~2.7°C) / RCP 4.5"
+      note: "Intermediate emissions."
+    ssp5_85:
+      label: "SSP5-8.5 (~4.4°C) / RCP 8.5"
+      note: "High emissions, minimal mitigation. ESRS E1 requires disclosure under a high-emissions scenario."
+    unspecified_high:
+      label: "High emissions scenario (unspecified)"
+      note: "Use when company references 'high emissions' or '4°C' without citing SSP/RCP"
+
+  transition:
+    label: "Transition scenarios"
+    seed_source: "NGFS scenario framework + IEA scenarios"
+
+    ngfs_net_zero_2050:
+      label: "NGFS Net Zero 2050 (orderly)"
+    ngfs_delayed_transition:
+      label: "NGFS Delayed Transition (disorderly)"
+    ngfs_hot_house:
+      label: "NGFS Hot House World (no additional policy)"
+    iea_nze:
+      label: "IEA Net Zero Emissions by 2050 (NZE)"
+    iea_sds:
+      label: "IEA Sustainable Development Scenario (SDS)"
+
+
+# ============================================================================
+# NODE 8: FRAMEWORKS
+# Source: Regulatory and voluntary disclosure frameworks
+# ============================================================================
+
+frameworks:
+  label: "Frameworks Referenced"
+  definition: "Which disclosure framework or standard is referenced or applied in the passage"
+
+  csrd_esrs:
+    label: "CSRD / ESRS"
+    seed_source: "EU CSRD Directive 2022/2464, ESRS Set 1 (EFRAG)"
+    key_standards:
+      - "ESRS E1 (Climate Change)"
+      - "ESRS E2 (Pollution)"
+      - "ESRS E3 (Water)"
+      - "ESRS E4 (Biodiversity)"
+      - "ESRS S1-S4 (Social)"
+      - "ESRS 2 (General Disclosures incl. DMA, IRO-1)"
+
+  eu_taxonomy:
+    label: "EU Taxonomy Regulation"
+    seed_source: "EU Taxonomy Regulation (EU) 2020/852"
+    note: "Simplified Taxonomy reporting rules apply from 2026 (Omnibus). Track Taxonomy Climate Delegated Act revisions."
+
+  csddd:
+    label: "CSDDD / CS3D"
+    seed_source: "Directive (EU) 2024/1760"
+    note: "Full application from July 2028 (revised per Omnibus I, Feb 2026). Scope: >5,000 employees, >€1.5bn turnover."
+
+  tcfd:
+    label: "TCFD (Task Force on Climate-related Financial Disclosures)"
+    seed_source: "FSB TCFD 2017 (superseded by IFRS S2 but still widely referenced)"
+
+  ifrs_s2:
+    label: "IFRS S2 / ISSB"
+    seed_source: "IFRS S2 Climate-related Disclosures (ISSB 2023)"
+    note: "CDP 2024 questionnaire fully aligned with IFRS S2."
+
+  cdp:
+    label: "CDP (Carbon Disclosure Project)"
+    seed_source: "CDP 2024 questionnaire (ESRS E1 interoperable)"
+
+  tnfd:
+    label: "TNFD (Taskforce on Nature-related Financial Disclosures)"
+    seed_source: "TNFD v1.0 (2023)"
+
+  sbtn:
+    label: "Science Based Targets for Nature (SBTN)"
+  gri:
+    label: "GRI Standards (Global Reporting Initiative)"
+  sfdr:
+    label: "SFDR (Sustainable Finance Disclosure Regulation)"
+
+
+# ============================================================================
+# NODE 9: EVIDENCE QUALITY
+# Source: IPCC evidence standards + GGA satellite indicator initiative
+# ============================================================================
+
+evidence_quality:
+  label: "Evidence Quality"
+  definition: >
+    How well-supported is the claim in the passage? Apply conservatively —
+    the most common error is evidence quality inflation (marking 'planned' as
+    'implemented'). When in doubt, assign the lower quality level.
+  seed_source: "IPCC evidence standards + GGA indicator initiative"
+
+  anecdotal:
+    label: "Anecdotal"
+    definition: "Single observation, no systematic data, qualitative description only"
+    examples:
+      - "We observed that our suppliers experienced flooding last year"
+
+  planned:
+    label: "Planned / committed"
+    definition: "The company states an intention or commitment but implementation has not begun"
+    examples:
+      - "We plan to install flood barriers at our Rotterdam facility by 2026"
+    escalation_trigger: "Qualifying language: 'plan to', 'intend to', 'committed to', 'will'"
+
+  implemented:
+    label: "Implemented"
+    definition: "The action has been completed or is actively underway"
+    examples:
+      - "Flood barriers were installed at our Rotterdam facility in Q3 2024"
+    note: "Do NOT use if the source only says the action is 'planned' or 'in progress'"
+
+  monitored:
+    label: "Monitored with internal data"
+    definition: "Ongoing tracking with internal measurement systems; data reported"
+    examples:
+      - "Water withdrawal tracked quarterly at all 23 facilities; 2024 reduction: 12%"
+
+  satellite_verified:
+    label: "Satellite-verified / Earth observation-verified"
+    seed_source: "GGA satellite indicator initiative"
+    definition: >
+      Outcome independently verified using Earth Observation data. Sits between
+      'monitored' and 'independently_verified'. Examples: crop coverage, flood
+      extent, vegetation health, deforestation change.
+    examples:
+      - "Satellite data confirms 15,000 hectares of watershed restored (Copernicus-verified)"
+
+  independently_verified:
+    label: "Independently verified (third-party audit)"
+    definition: "External third party has audited and verified the claim"
+    review_trigger: "ALWAYS requires human review — never auto-approve"
+    examples:
+      - "Physical risk assessment independently verified by [auditor] against ISO 14090"
+
+  peer_reviewed:
+    label: "Peer-reviewed scientific evidence"
+    definition: "Published in a peer-reviewed journal or IPCC report"
+    examples:
+      - "Per IPCC AR6 WG2 Chapter 5, global food production losses of 2-6% per decade are projected"
+
+
+# ============================================================================
+# NODE 10: FINANCE
+# Source: CPI Global Landscape of Climate Finance methodology
+# ============================================================================
+
+finance:
+  label: "Adaptation Finance"
+  definition: "Financial flows specifically for climate adaptation. For Report 3 (Finance Flow Tracker)."
+  seed_source: "CPI Global Landscape of Climate Finance (2025 methodology)"
+
+  instrument_type:
+    label: "Financial instrument type"
+    grant: "Non-repayable grant"
+    concessional_loan: "Below-market-rate loan"
+    market_rate_loan: "Commercial loan"
+    guarantee: "Risk guarantee or first-loss mechanism"
+    equity: "Equity investment"
+    blended_finance: "Combination of concessional and commercial"
+    insurance: "Risk transfer / parametric insurance"
+    green_bond: "Labelled green/sustainability bond"
+    results_based: "Payment against verified results"
+
+  adaptation_specificity:
+    label: "How specifically targeted to adaptation"
+    primarily_adaptation: "Explicitly designed and tracked for adaptation outcomes"
+    dual_benefit: "Benefits both adaptation and mitigation"
+    enabling: "Supports enabling conditions (early warning, capacity building)"
+    untagged: "Climate finance but adaptation component not separated"
+
+  provider_type:
+    multilateral_development_bank: "MDB (GCF, World Bank, ADB, AfDB, etc.)"
+    bilateral_donor: "Government development agency (GIZ, AFD, DFID, etc.)"
+    private_sector: "Corporate or institutional investor"
+    philanthropy: "Foundation or NGO"
+    national_government: "Domestic public finance"
+
+  gcf_result_area:
+    label: "GCF Result Area (if GCF-financed)"
+    increased_resilience_most_vulnerable: "GCF result area A"
+    increased_resilience_health_food_water: "GCF result area B"
+    increased_resilience_infrastructure: "GCF result area C"
+    improved_resilience_ecosystems: "GCF result area D"
+
+
+# ============================================================================
+# NODE 11: SECTOR TAGS
+# Source: IPCC AR6 WG2 sector taxonomy (authoritative for scientific interoperability)
+# ============================================================================
+
+sector_tags:
+  label: "Sector Tags (IPCC AR6 WG2)"
+  definition: "Tag passages with the sectors they relate to. Multiple tags allowed."
+  seed_source: "IPCC AR6 WG2 Sectoral chapters"
+
+  food_agriculture:
+    label: "Food, Fibre and Other Ecosystem Products"
+    ipcc_ar6_chapter: "Chapter 5"
+    includes: [crops, livestock, fisheries, aquaculture, food_supply_chains]
+
+  water:
+    label: "Water"
+    ipcc_ar6_chapter: "Chapter 4"
+    includes: [freshwater, groundwater, irrigation, water_management]
+
+  ecosystems:
+    label: "Terrestrial and Freshwater Ecosystems"
+    ipcc_ar6_chapter: "Chapter 2"
+
+  ocean_coastal:
+    label: "Ocean and Coastal Ecosystems"
+    ipcc_ar6_chapter: "Chapter 3"
+
+  cities_infrastructure:
+    label: "Cities, Settlements and Key Infrastructure"
+    ipcc_ar6_chapter: "Chapter 6"
+
+  health:
+    label: "Human Health"
+    ipcc_ar6_chapter: "Chapter 7"
+
+  livelihoods_poverty:
+    label: "Poverty, Livelihoods and Sustainable Development"
+    ipcc_ar6_chapter: "Chapter 8"
+
+  # Sector-specific additions for food/beverage/agriculture focus
+  beverages:
+    label: "Beverages (wine, spirits, beer, soft drinks)"
+    seed_mapping: "sector_tags/food_agriculture"
+    note: "Sector-specific extension for platform focus"
+
+  retail_consumer_goods:
+    label: "Retail and Consumer Goods"
+    seed_mapping: "sector_tags/cities_infrastructure"
+
+
+# ============================================================================
+# SCHEMA EVOLUTION LOG
+# Tracks all extensions added post-seed-layer
+# ============================================================================
+
+schema_evolution_log:
+  - id: "EXT-001"
+    node_path: "hazards/extensions/compound_heat_drought"
+    type: "new_subcategory"
+    parent_seed: "hazards/physical_acute/extreme_heat_event + hazards/physical_chronic/water_stress"
+    added: "2025-Q2"
+    frequency_at_addition: 847
+    reviewer: "domain_expert_1"
+    rationale: "Compound events appear with sufficient frequency and distinct adaptation logic to warrant standalone node"
+
+  - id: "EXT-002"
+    node_path: "responses/adaptation/digital_early_warning"
+    type: "new_subcategory"
+    parent_seed: "responses/adaptation"
+    ipcc_ar6_mapping: "technology"
+    gcf_mapping: "enabling_environment"
+    added: "2025-Q2"
+    frequency_at_addition: 623
+    reviewer: "domain_expert_1"
+    rationale: "Digital/satellite EWS are distinct from traditional EWS: different cost, scalability, and evidence base"
+
+  - id: "EXT-003"
+    node_path: "hazards/physical_chronic/biodiversity_loss"
+    type: "seed_layer_addition"
+    parent_seed: "hazards/physical_chronic"
+    seed_source_added: "ESRS E4 + IPCC AR6 Ch2"
+    added: "2026-03"
+    rationale: "ESRS E4 biodiversity is closely linked to E1 via ecosystem service dependencies; relevant for food/agriculture sector"
