@@ -1,264 +1,468 @@
-# Document Q&A System - Dual-Index Strategy
+# Adaptation Intelligence Platform
 
-A sophisticated document Q&A system implementing a **dual-index strategy** for maximum accuracy while building a permanent knowledge base.
+A climate knowledge intelligence platform that finds, downloads, extracts, classifies, and queries climate adaptation data from corporate reports and policy documents — aligned to ESRS E1, CSRD, TCFD, and IPCC AR6.
 
-## 🎯 Why Dual-Index?
+## What It Does
 
-### The Problem
-When all documents are indexed together, vector search can retrieve chunks from the wrong documents, reducing answer accuracy.
+| Pillar | What happens |
+|--------|-------------|
+| **Ingestion** | PDFs and web pages are downloaded, text is extracted, and documents are saved to Azure AI Search |
+| **Classification** | Two-stage LLM pipeline: Stage A pulls out every climate passage; Stage B classifies each into a seeded taxonomy |
+| **Output Generation** | Sector newsletters, D1–D8 sector briefs, and D1–D8 company assessments — all with source citations |
 
-### The Solution
-**Dual-Index Strategy:**
-1. **Persistent KB** (`documents-index`): All documents stored permanently for future cross-document queries
-2. **Ephemeral Processing** (`temp-documents-index`): Each document processed in isolation for Q&A, then deleted
+---
 
-### Benefits
-✅ **Maximum Accuracy**: Each document processed in isolation, eliminating cross-document noise  
-✅ **Permanent KB**: All documents stored for future queries  
-✅ **Guaranteed Precision**: Vector search only retrieves from target document  
-✅ **Focused Context**: LLM gets only relevant chunks from the specific document
+## Before You Start — Set Up Your `.env`
 
-## 🏗️ Architecture
+Everything the platform needs comes from environment variables. You never hardcode credentials anywhere.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   AZURE SEARCH SERVICE                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  INDEX 1: "documents-index" (PERSISTENT KB)                 │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │ • All documents stored permanently                 │    │
-│  │ • Used for future cross-document queries          │    │
-│  │ • Built once, queried many times                  │    │
-│  └────────────────────────────────────────────────────┘    │
-│                                                              │
-│  INDEX 2: "temp-documents-index" (EPHEMERAL)                │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │ • One document at a time                           │    │
-│  │ • Process → Answer → Delete                        │    │
-│  │ • Maximum accuracy (no interference)               │    │
-│  └────────────────────────────────────────────────────┘    │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## 📦 Project Structure
-
-```
-document_qa_system_v2/
-├── config.py                        # Configuration management
-├── indexing.py                      # Document extraction, chunking, embedding
-├── question_router.py               # Question type detection
-├── qa.py                            # Q&A and classification logic
-├── dual_index_batch_processor.py   # Dual-index strategy (MAIN)
-├── cli.py                           # Command-line interface
-├── requirements.txt                 # Dependencies
-└── .env.example                     # Environment template
-```
-
-## 🚀 Installation
+### Step 1 — Copy the example file
 
 ```bash
-# 1. Install dependencies
-pip install -r requirements.txt
-
-# 2. Configure environment
 cp .env.example .env
-# Edit .env with your Azure credentials
-
-# 3. Create documents folder
-mkdir documents
-# Add your PDF files
 ```
 
-## 📖 Usage
+### Step 2 — Fill in each value
 
-### RECOMMENDED: Dual-Index Batch Processing
+Open `.env` in any text editor and fill in the values below. Here is where to find each one.
 
-Best accuracy for extracting data from multiple documents:
+```env
+# ── Azure AI Search ────────────────────────────────────────────────────────────
+# Where to find: Azure portal → your Search resource → Overview tab
+AZURE_SEARCH_ENDPOINT=https://your-search-name.search.windows.net
+# Where to find: Azure portal → your Search resource → Settings → Keys → Admin key
+AZURE_SEARCH_KEY=abc123...
+
+# ── Azure OpenAI ──────────────────────────────────────────────────────────────
+# Where to find: Azure portal → your OpenAI resource → Overview tab → Endpoint
+AZURE_OPENAI_ENDPOINT=https://your-openai-name.openai.azure.com/
+# Where to find: Azure portal → your OpenAI resource → Keys and Endpoint → KEY 1
+AZURE_OPENAI_KEY=abc123...
+
+# ── Model deployment names ────────────────────────────────────────────────────
+# These must match the deployment names you created in Azure OpenAI Studio.
+# Leave as-is if you used the default names.
+EMBEDDING_DEPLOYMENT=text-embedding-3-large
+GPT4O_DEPLOYMENT=gpt-4o
+GPT4O_MINI_DEPLOYMENT=gpt-4o-mini
+
+# ── Google Custom Search Engine ───────────────────────────────────────────────
+# Where to find API key: console.cloud.google.com → APIs & Services → Credentials
+# You need the "Custom Search API" enabled on your project.
+GOOGLE_CSE_API_KEY=AIza...
+# Where to find CSE ID: programmablesearchengine.google.com → your engine → cx value
+GOOGLE_CSE_ID=abc123:xyz
+```
+
+You can add multiple Google API keys separated by commas — the platform rotates through them automatically when quota is hit:
+
+```env
+GOOGLE_CSE_API_KEY=AIzaKey1,AIzaKey2,AIzaKey3
+```
+
+### Step 3 — Install dependencies
 
 ```bash
-python cli.py dual-batch documents/ --questions-file questions.txt --parallel
+pip install -r requirements.txt
 ```
 
-**What happens:**
-1. ✅ Builds persistent KB with all documents (parallel)
-2. ✅ For each document:
-   - Index to temp-documents-index (isolated)
-   - Answer all questions (no cross-document noise)
-   - Delete from temp index
-3. ✅ Saves results to CSV
-4. ✅ Persistent KB remains for future queries
+---
 
-**Output:** 
-- `output/qa_results.csv` with all answers
-- Persistent KB ready for future use
+## Verify Everything Works
 
-### Example Questions File
+### Test without Azure (no credentials needed)
 
-```text
-# questions.txt
-What is the main focus and purpose of this document?
-Which climate risks are identified, and in which locations or sectors?
-Is this document related to adaptation or mitigation?
-What type of document is this?
-Which climate hazards are mentioned?
-What climate adaptation strategies are proposed?
-```
+The test suite mocks all Azure and OpenAI calls. Run this first to confirm the codebase is intact:
 
-### Other Commands
-
-**Build Persistent KB Only:**
 ```bash
-python cli.py index-all documents/ --parallel
+python -m pytest tests/ -v
 ```
 
-**Query Persistent KB:**
+You should see **154 tests pass** (0 failures). If any tests fail, check the error — it's almost always a missing package.
+
+### Test your CLI works
+
 ```bash
-python cli.py ask "What are the main risks?" --document climate_plan_2024
+python ingest.py --help
 ```
 
-**Single-Index Batch (Faster, Slightly Less Accurate):**
+You should see the full help text with all flags. No credentials needed for this.
+
+### Test your Azure connection
+
+Once your `.env` is filled in, run a quick connection check:
+
 ```bash
-python cli.py single-batch documents/ --questions-file questions.txt --parallel
-```
+python - <<'EOF'
+import asyncio, config
+from knowledge_store import KnowledgeStore
+from openai import AsyncAzureOpenAI
 
-**One-Off Ephemeral Query:**
-```bash
-python cli.py ephemeral document.pdf "What is this about?"
-```
-
-## 🔄 Workflow Comparison
-
-### Dual-Index (RECOMMENDED)
-```
-For each document:
-  1. Index to persistent KB (parallel, once)
-  2. Index to temp (isolated)
-  3. Answer questions (accurate)
-  4. Delete from temp
-
-Result: Accurate CSV + Permanent KB
-```
-
-### Single-Index (Traditional)
-```
-1. Index all documents to one index
-2. For each document:
-   - Query with document_name filter
-   - May retrieve wrong chunks if names similar
-
-Result: Faster but less accurate
-```
-
-## 📊 Output Format
-
-CSV with columns:
-
-| document | Q1: Main focus? | Q1_type | Q2: Adaptation/mitigation? | Q2_type | Q2_dimension | Q2_confidence | Q2_new_category |
-|----------|----------------|---------|---------------------------|---------|--------------|---------------|-----------------|
-| doc1.pdf | Climate risks... | exploratory | loss and damage | classification | topic | high | True |
-
-## 🎓 Question Types
-
-The system handles **mixed question types**:
-
-### Exploratory Questions
-Extract information from documents:
-- "What are the main climate risks?"
-- "Which actors are mentioned?"
-- "What financing mechanisms are described?"
-
-### Classification Questions
-Categorize documents with dynamic expansion:
-- "Is this about adaptation or mitigation?"
-- "What type of document is this?"
-- "Which sector does this focus on?"
-
-**Dynamic Categories:** If a document doesn't fit existing categories, the system creates new ones automatically.
-
-## ⚙️ Configuration
-
-Edit `config.py` or set environment variables:
-
-```python
-CHUNK_SIZE = 1000              # Characters per chunk
-CHUNK_OVERLAP = 200            # Overlap between chunks
-MAX_SEARCH_RESULTS = 5         # Chunks to retrieve
-PARALLEL_WORKERS = 4           # Parallel indexing workers
-EMBEDDING_BATCH_SIZE = 50      # Embeddings per batch
-```
-
-## 🔍 Advanced: When to Use Which Mode
-
-| Use Case | Command | Index Strategy |
-|----------|---------|----------------|
-| **Extract data from multiple docs (BEST ACCURACY)** | `dual-batch` | Both: KB + isolated temp |
-| **Build searchable knowledge base** | `index-all` | Persistent only |
-| **Query existing knowledge base** | `ask` | Persistent only |
-| **Quick batch processing** | `single-batch` | Single index |
-| **One-off question** | `ephemeral` | Temp only |
-
-## 💡 Tips for Maximum Accuracy
-
-1. **Use dual-batch** for production data extraction
-2. **Enable parallel KB indexing** (`--parallel`) for speed
-3. **Review dynamic categories** in `categories.json` periodically
-4. **Tune chunk size** based on document structure
-5. **Monitor vector search scores** (stored in metadata)
-
-## 🔧 Programmatic Use
-
-```python
-from dual_index_batch_processor import DualIndexBatchProcessor
-
-questions = [
-    "What are the main climate risks?",
-    "Is this about adaptation or mitigation?",
-    "What type of document is this?"
-]
-
-processor = DualIndexBatchProcessor()
-processor.process_documents_with_questions(
-    document_folder="documents",
-    questions=questions,
-    output_file="results.csv",
-    build_persistent_kb=True,      # Also build permanent KB
-    parallel_kb_indexing=True      # Parallel indexing
+client = AsyncAzureOpenAI(
+    azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+    api_key=config.AZURE_OPENAI_KEY,
+    api_version="2024-08-01-preview",
 )
+store = KnowledgeStore(
+    search_endpoint=config.AZURE_SEARCH_ENDPOINT,
+    search_key=config.AZURE_SEARCH_KEY,
+    openai_client=client,
+)
+print("Connected. Indexes will be created on first upsert.")
+EOF
 ```
 
-## 📈 Storage Costs
+No error = credentials work.
 
-### Persistent KB
-- Stores: All documents permanently
-- Cost: ~$1-5/month for 100-500 documents
-- Benefit: Query anytime without re-indexing
+---
 
-### Ephemeral Temp Index
-- Stores: One document at a time
-- Cost: Negligible (immediate deletion)
-- Benefit: Maximum accuracy
+## How to Start: Step-by-Step Walkthrough
 
-## 🐛 Troubleshooting
+### Option A — You have a PDF already
 
-**No text extracted:**
-- PDF may be scanned (needs OCR)
-- Try converting to searchable PDF
+If you have a corporate report PDF on disk, this is the fastest path.
 
-**Rate limits:**
-- Reduce `EMBEDDING_BATCH_SIZE`
-- Reduce `PARALLEL_WORKERS`
+```bash
+# Process a single PDF end-to-end
+python ingest.py --source corporate_pdf_direct --path /path/to/danone_2024.pdf
+```
 
-**Low accuracy:**
-- Use dual-batch instead of single-batch
-- Increase `MAX_SEARCH_RESULTS`
-- Adjust `CHUNK_SIZE` for your documents
+What happens:
+1. PDF text is extracted
+2. Stage A: GPT-4o-mini reads the text and pulls out every climate-related passage
+3. Stage B: GPT-4o-mini classifies each passage into the taxonomy (physical hazard, adaptation response, governance, etc.)
+4. High-confidence passages are auto-approved and saved to Azure AI Search
+5. Lower-confidence passages are saved as `pending_review` for human review
 
-**Memory errors:**
-- Process fewer documents at once
-- Reduce `PARALLEL_WORKERS`
+Output example:
+```
+{'documents_processed': 1, 'documents_skipped_duplicate': 0,
+ 'passages_extracted': 47, 'passages_auto_approved': 31,
+ 'passages_pending_review': 12, 'passages_auto_rejected': 4, 'errors': []}
+```
 
-## 📝 License
+### Option B — Search the web first, review, then process (recommended)
 
-MIT License
+This is the two-step workflow. You search first without spending any LLM tokens, review what was found, then decide what to process.
+
+**Step 1 — Search and download** (no LLM, no Azure)
+
+```bash
+python ingest.py --source google_cse_corporate \
+                 --path "Danone CSRD climate report 2024 filetype:pdf" \
+                 --download-only
+```
+
+What you see:
+```
+Searching: 'Danone CSRD climate report 2024 filetype:pdf'
+Source:    google_cse_corporate
+
+  ✓ Danone Universal Registration Document 2024
+    URL:  https://www.danone.com/content/dam/danone-corp/...pdf
+    Size: 312,450 chars | lang: fr
+    File: tmp/staged/Danone_Universal_Registra_a1b2c3d4.txt
+
+  ✓ Danone Climate Transition Plan 2024
+    URL:  https://www.danone.com/content/dam/...climate.pdf
+    Size: 89,220 chars | lang: en
+    File: tmp/staged/Danone_Climate_Transition__e5f6g7h8.txt
+
+2 document(s) staged in tmp/staged/
+Manifest:  tmp/staged/manifest.json
+```
+
+**Step 2 — Review what was downloaded**
+
+Open the `.txt` files in `tmp/staged/` to check they contain useful content. The manifest JSON lists all metadata.
+
+**Step 3 — Process one file**
+
+```bash
+python ingest.py --source corporate_pdf_direct \
+                 --path tmp/staged/Danone_Climate_Transition__e5f6g7h8.txt
+```
+
+**Or process all staged files at once**
+
+```bash
+python ingest.py --source corporate_pdf_direct --path tmp/staged/ --all-staged
+```
+
+---
+
+## All CLI Commands
+
+### `ingest.py` — Add documents to the knowledge store
+
+```bash
+# Process a local PDF
+python ingest.py --source corporate_pdf_direct --path documents/report.pdf
+
+# Process a PDF and mark all passages as high-priority (P1_CLIENT)
+python ingest.py --source corporate_pdf_direct --path documents/report.pdf --client-facing
+
+# Search → download only (review before processing)
+python ingest.py --source google_cse_corporate \
+                 --path "Nestle water stress adaptation 2024" \
+                 --download-only
+
+# Search policy documents
+python ingest.py --source google_cse_policy \
+                 --path "EU climate adaptation food sector guidance" \
+                 --download-only
+
+# Process all staged files
+python ingest.py --source corporate_pdf_direct --path tmp/staged/ --all-staged
+```
+
+Available source keys (from `sources.yaml`):
+
+| Source key | What it does |
+|------------|-------------|
+| `corporate_pdf_direct` | Process a local PDF or `.txt` file you already have |
+| `google_cse_corporate` | Search for corporate sustainability/CSRD/TCFD reports |
+| `google_cse_policy` | Search for policy docs, NAPs, FAO/IPCC/EU guidance |
+| `google_cse_targeted` | Search specific high-quality domains (EEA, UNFCCC, FAO) |
+
+---
+
+### `validation/app.py` — Human review UI
+
+After ingestion, passages with confidence between 0.40 and 0.85 are marked `pending_review`. Review them here:
+
+```bash
+streamlit run validation/app.py
+```
+
+Opens at `http://localhost:8501`. You can filter by priority level and either approve, edit, reject, or flag each passage.
+
+---
+
+### `outputs/newsletter.py` — Sector newsletter
+
+Generates a narrative newsletter summarising recent climate adaptation intelligence for a sector.
+
+```bash
+# Basic newsletter for food and beverage
+python outputs/newsletter.py --sector food_and_beverage
+
+# With options
+python outputs/newsletter.py \
+    --sector food_agriculture \
+    --top-k 40 \
+    --days-back 30 \
+    --output newsletter_march2026.md
+```
+
+Options:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--sector` | required | Sector tag to filter passages |
+| `--top-k` | 30 | Max passages to use |
+| `--days-back` | 30 | Only use passages ingested in last N days |
+| `--output` | stdout | Write to file instead of printing |
+
+---
+
+### `outputs/sector_brief.py` — D1–D8 sector brief
+
+A structured 8-dimension brief covering all aspects of climate adaptation for a sector.
+
+```bash
+# Basic brief
+python outputs/sector_brief.py --sector food_and_beverage
+
+# With options
+python outputs/sector_brief.py \
+    --sector food_agriculture \
+    --time-horizon 2030 \
+    --top-k 60 \
+    --output sector_brief_food_2026.md
+```
+
+The 8 dimensions (D1–D8):
+
+| Dimension | What it covers |
+|-----------|---------------|
+| D1 | Physical hazard identification — which climate hazards are material |
+| D2 | Risk quantification — financial magnitude and scenario analysis |
+| D3 | Adaptation responses — actions and measures being implemented |
+| D4 | Governance — board oversight and climate risk management |
+| D5 | Finance — investments, green bonds, insurance, adaptation spending |
+| D6 | Supply chain — upstream/downstream climate exposure |
+| D7 | Scenarios — RCP/SSP/NGFS pathways and time horizons |
+| D8 | Monitoring — KPIs, targets, and CSRD/ESRS reporting |
+
+---
+
+### `outputs/company_assessment.py` — D1–D8 company assessment
+
+Same 8-dimension framework but focused on a single company, scored out of 24.
+
+```bash
+# Assess a company
+python outputs/company_assessment.py --company "Danone"
+
+# With year filter and file output
+python outputs/company_assessment.py \
+    --company "Nestle" \
+    --year 2024 \
+    --top-k 50 \
+    --output nestle_assessment_2024.md
+```
+
+Options:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--company` | required | Company name |
+| `--company-id` | slugified name | Internal ID if different from name |
+| `--year` | all available | Focus on a specific reporting year |
+| `--top-k` | 50 | Max passages |
+| `--output` | stdout | Write to file |
+
+Sample output header:
+```
+**Company:** Danone | **Year:** 2024 | **Score:** 16/24
+
+## D1 — Physical Hazard Identification (Score: 3/3)
+Danone discloses water stress as a primary physical hazard across...
+[P:a1b2c3d4]
+
+## Sources
+[P:a1b2c3d4] Danone Universal Registration Document 2024, p.87
+  URL: https://www.danone.com/...
+```
+
+---
+
+## Repository Structure
+
+```
+adapters/
+  base.py              # BaseAdapter ABC + AdapterAuthError, AdapterFetchError, AdapterParseError
+  corporate_pdf.py     # Local PDF → Document objects (PyPDF2)
+  google_cse.py        # Search → download → extract → Document objects
+  gcf_api.py           # GCF Project Browser API (Phase 2)
+  oecd_api.py          # OECD CRS finance flows API (Phase 2)
+schemas/
+  document.py          # Document dataclass, SOURCE_TYPES, DOCUMENT_TYPES
+  passage.py           # ClassifiedPassage dataclass, controlled vocabularies
+  validation.py        # ValidationStatus enum, TRUSTED_STATUSES
+outputs/
+  citations.py         # Citation index + [P:id] appendix rendering
+  newsletter.py        # Sector newsletter generator
+  sector_brief.py      # D1–D8 sector brief generator
+  company_assessment.py # D1–D8 company scoring
+validation/
+  app.py               # Streamlit human review UI
+prompts/
+  collect_v1.txt       # Stage A prompt — extract all climate passages
+  classify_v1.txt      # Stage B prompt — classify each passage into taxonomy
+  newsletter_v1.txt    # Newsletter generation prompt
+  sector_brief_v1.txt  # Sector brief generation prompt
+  company_assessment_v1.txt # Company assessment prompt
+tests/
+  conftest.py          # Stub env vars for test collection
+  test_schemas.py      # 40 tests — schemas and controlled vocabularies
+  test_adapters.py     # 16 tests — CorporatePDFAdapter + GoogleCSEAdapter
+  test_taxonomy.py     # 24 tests — TaxonomyLoader
+  test_extractor.py    # 20 tests — Stage A/B, triage, build_classified_passage
+  test_knowledge_store.py # 23 tests — KnowledgeStore (mocked Azure)
+  test_outputs.py      # 31 tests — citations, newsletter, brief, assessment
+_design/               # Read-only design specs — do not modify
+  taxonomy.yaml        # 11-node climate adaptation taxonomy
+  PROJECT_BRIEF.md     # Full specification
+config.py              # Single source for all env var reads
+taxonomy.py            # TaxonomyLoader singleton
+knowledge_store.py     # Azure AI Search client (only file importing the SDK)
+extractor.py           # Stage A + Stage B LLM extraction logic
+ingest.py              # Pipeline entry point + CLI
+sources.yaml           # Source registry (what to ingest and how)
+```
+
+---
+
+## How the Pipeline Works
+
+```
+PDF / URL / query
+       │
+       ▼
+   Adapter.fetch()          ← CorporatePDFAdapter or GoogleCSEAdapter
+       │                      extracts raw text, yields Document objects
+       ▼
+   normalize()              ← NFKC normalisation, dedup hash, language detect
+       │
+       ▼
+   store.deduplicate()      ← skip if content_hash already in Azure
+       │
+       ▼
+   run_stage_a()            ← GPT-4o-mini reads document, returns list of
+       │                      climate passages (text + topic_hint)
+       ▼
+   run_stage_b()            ← GPT-4o-mini classifies each passage:
+       │                      taxonomy_node, confidence, hazard_type, etc.
+       ▼
+   triage()                 ← auto_approved / pending_review / auto_rejected
+       │                      based on confidence + source_type + seed_category
+       ▼
+   store.upsert_passage()   ← saves to Azure AI Search with HNSW vector index
+```
+
+Auto-approval requires **all three** conditions:
+- Confidence ≥ 0.85
+- `seed_category = true` (taxonomy node marked as seeded)
+- Source type is `corporate_pdf` or `google_cse`
+
+---
+
+## GitHub Actions (Automated Ingestion)
+
+### CI — runs on every push
+
+Tests run automatically. See `.github/workflows/tests.yml`.
+
+### Weekly ingestion — runs every Monday 06:00 UTC
+
+Configured in `.github/workflows/ingest.yml`. To activate it, add these secrets to your GitHub repository:
+
+**Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret name | Value |
+|-------------|-------|
+| `AZURE_SEARCH_ENDPOINT` | Your Azure Search endpoint |
+| `AZURE_SEARCH_KEY` | Your Azure Search admin key |
+| `AZURE_OPENAI_ENDPOINT` | Your Azure OpenAI endpoint |
+| `AZURE_OPENAI_KEY` | Your Azure OpenAI key |
+| `GOOGLE_CSE_API_KEY` | Your Google CSE API key(s) |
+| `GOOGLE_CSE_ID` | Your Google CSE ID |
+
+You can also trigger ingestion manually from the GitHub Actions tab with a custom source and query.
+
+---
+
+## Phase Status
+
+| Phase | Status | What was built |
+|-------|--------|---------------|
+| Phase 0 | Complete | Schemas, adapters, tests, repo structure |
+| Phase 1 | Complete | `ingest.py`, taxonomy, knowledge store, two-stage extraction |
+| Phase 2 | Complete | GCF API, OECD API adapters, Streamlit review UI, GitHub Actions |
+| Phase 3 | Complete | Newsletter, sector brief, company assessment (D1–D8), citations |
+
+Phase 2 API adapters (GCF, OECD) are fully implemented but disabled by default. Enable them in `sources.yaml` by setting `enabled: true`.
+
+---
+
+## Key Design Rules
+
+- `config.py` is the **only** file that reads `os.environ` — never use `os.getenv` anywhere else
+- `knowledge_store.py` is the **only** file that imports the Azure Search SDK
+- Every function raises a named exception on failure — no silent swallowing
+- No hardcoded credentials anywhere in the codebase
+- Taxonomy at `_design/taxonomy.yaml` is **read-only** — never modify it directly
+- Prompt files are versioned (`collect_v1.txt`, `classify_v2.txt`, etc.) — never modify in-place; bump the version
+- `TRUSTED_STATUSES` filter in `query_trusted()` is non-bypassable — only auto-approved, approved, or edited passages feed LLM outputs

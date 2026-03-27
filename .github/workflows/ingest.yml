@@ -1,0 +1,67 @@
+name: Scheduled Ingestion
+
+on:
+  schedule:
+    # Weekly — every Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Source key from sources.yaml"
+        required: true
+        default: "google_cse_corporate"
+      query:
+        description: "Search query or file path"
+        required: true
+        default: "Danone CSRD climate adaptation 2024"
+      client_facing:
+        description: "Mark passages as client-facing (P1 priority)"
+        required: false
+        default: "false"
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run ingestion
+        env:
+          AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
+          AZURE_SEARCH_KEY: ${{ secrets.AZURE_SEARCH_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
+          GOOGLE_CSE_API_KEY: ${{ secrets.GOOGLE_CSE_API_KEY }}
+          GOOGLE_CSE_ID: ${{ secrets.GOOGLE_CSE_ID }}
+        run: |
+          SOURCE="${{ github.event.inputs.source || 'google_cse_corporate' }}"
+          QUERY="${{ github.event.inputs.query || 'food beverage CSRD climate adaptation 2024' }}"
+          CLIENT_FACING="${{ github.event.inputs.client_facing || 'false' }}"
+
+          if [ "$CLIENT_FACING" = "true" ]; then
+            python ingest.py --source "$SOURCE" --path "$QUERY" --client-facing
+          else
+            python ingest.py --source "$SOURCE" --path "$QUERY"
+          fi
+
+      - name: Run tests
+        env:
+          AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
+          AZURE_SEARCH_KEY: ${{ secrets.AZURE_SEARCH_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
+          GOOGLE_CSE_API_KEY: ${{ secrets.GOOGLE_CSE_API_KEY }}
+          GOOGLE_CSE_ID: ${{ secrets.GOOGLE_CSE_ID }}
+        run: python -m pytest tests/ -v --tb=short

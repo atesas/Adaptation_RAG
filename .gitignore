@@ -1,3 +1,33 @@
+# Environment
 .env
-documents
-documents_original_backup
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Temporary downloads (fetched at runtime)
+tmp/
+
+# PDF source documents (fetched at runtime, not committed)
+*.pdf
+documents/
+documents_original_backup/
+
+# Old output files
+output/
+
+# Credentials file (MUST NOT be committed — keys must be in .env)
+google_search/config.yaml
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+search_tool.log
