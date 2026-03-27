@@ -4,41 +4,40 @@ GoogleCSEAdapter
 Two-step adapter: search → download → extract text.
 
 Step 1 (search):
-    Uses GoogleCustomSearchClient + SearchManager from google_search/ to
-    query the Google Custom Search Engine API. Returns a list of result URLs
-    with MIME type metadata.
+    Calls the Google Custom Search JSON API directly via requests.
+    Endpoint: https://www.googleapis.com/customsearch/v1
+    Paginates up to max_results. Rotates through comma-separated API keys.
 
 Step 2 (download + extract):
-    Uses ImprovedFileDownloader from google_search/ to download each result
-    to tmp/. PDFs are extracted with PyPDF2 (same logic as CorporatePDFAdapter).
-    HTML pages are stored as raw HTML text.
+    Downloads each result URL to tmp/cse_downloads/ with requests.
+    PDFs are extracted with PyPDF2. HTML files are read as plain text.
 
 Yields one Document per successfully downloaded and extracted result.
 
 API keys and CSE ID come from config.GOOGLE_CSE_API_KEY / config.GOOGLE_CSE_ID.
-All downloads go to config.TMP_DIR.
 """
 
-import sys
+import asyncio
+import hashlib
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncIterator
+from typing import AsyncIterator, Iterator
 
+import requests
 import PyPDF2
 
 import config
 from adapters.base import BaseAdapter, AdapterAuthError, AdapterFetchError, AdapterParseError
 from schemas.document import Document
 
-# google_search/ modules are on the path via sys.path manipulation below.
-# They are retained until Phase 0 wrapping is confirmed, then the folder
-# will be deleted (see PROJECT_BRIEF.md Section 4 delete list).
-_GOOGLE_SEARCH_DIR = Path(__file__).parent.parent / "google_search"
-if str(_GOOGLE_SEARCH_DIR) not in sys.path:
-    sys.path.insert(0, str(_GOOGLE_SEARCH_DIR))
-
 logger = logging.getLogger(__name__)
+
+_CSE_ENDPOINT = "https://www.googleapis.com/customsearch/v1"
+_MAX_RESULTS_PER_PAGE = 10
+_REQUEST_TIMEOUT = 30
+_DOWNLOAD_TIMEOUT = 60
 
 
 class GoogleCSEAdapter(BaseAdapter):
@@ -46,9 +45,8 @@ class GoogleCSEAdapter(BaseAdapter):
     Adapter for Google Custom Search Engine + PDF/HTML download.
 
     fetch(query) two-step flow:
-      Step 1: CSE API call via GoogleCustomSearchClient → list of result URLs
-      Step 2: Download each URL to tmp/ via ImprovedFileDownloader
-              → extract text (PDF: PyPDF2, HTML: raw page source)
+      Step 1: CSE API call → list of result metadata dicts
+      Step 2: Download each URL to tmp/ → extract text
       → yield Document per successful download
     """
 
@@ -56,43 +54,34 @@ class GoogleCSEAdapter(BaseAdapter):
 
     def __init__(self, config_dict: dict) -> None:
         super().__init__(config_dict)
-        self._validate_credentials()
+        self._api_keys = self._get_api_keys()
+        self._cse_id = self._get_cse_id()
+        self._key_index = 0
 
-    def _validate_credentials(self) -> None:
-        """Raise AdapterAuthError if CSE credentials are missing."""
-        try:
-            _ = config.GOOGLE_CSE_API_KEY
-            _ = config.GOOGLE_CSE_ID
-        except KeyError as exc:
-            raise AdapterAuthError(
-                "GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID must be set in environment"
-            ) from exc
+    def _get_api_keys(self) -> list[str]:
+        api_key = config.GOOGLE_CSE_API_KEY
+        if not api_key:
+            raise AdapterAuthError("GOOGLE_CSE_API_KEY must not be empty")
+        keys = [k.strip() for k in api_key.split(",") if k.strip()]
+        if not keys:
+            raise AdapterAuthError("GOOGLE_CSE_API_KEY contains no valid keys")
+        return keys
 
-        if not config.GOOGLE_CSE_API_KEY or not config.GOOGLE_CSE_ID:
-            raise AdapterAuthError(
-                "GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID must not be empty"
-            )
+    def _get_cse_id(self) -> str:
+        cse_id = config.GOOGLE_CSE_ID
+        if not cse_id:
+            raise AdapterAuthError("GOOGLE_CSE_ID must not be empty")
+        return cse_id
 
     async def fetch(self, query_or_path: str) -> AsyncIterator[Document]:
-        """
-        Args:
-            query_or_path: Google search query string.
-
-        Yields:
-            Document objects with extraction_status="pending".
-
-        Raises:
-            AdapterAuthError: if CSE credentials are invalid.
-            AdapterFetchError: if the CSE API call fails after retries.
-            AdapterParseError: if a downloaded file cannot be parsed.
-        """
-        results = self._search(query_or_path)
+        results = list(self._search(query_or_path))
 
         if not results:
             logger.warning("GoogleCSEAdapter: no results for query %r", query_or_path)
             return
 
-        config.TMP_DIR.mkdir(parents=True, exist_ok=True)
+        download_dir = config.TMP_DIR / "cse_downloads"
+        download_dir.mkdir(parents=True, exist_ok=True)
         ingestion_date = datetime.utcnow()
 
         for result in results:
@@ -100,20 +89,27 @@ class GoogleCSEAdapter(BaseAdapter):
             if not url:
                 continue
 
-            downloaded_path = self._download(result)
+            await self.rate_limit_wait(self.config.get("rate_limit_rpm", 60))
+
+            downloaded_path = self._download(url, download_dir)
             if downloaded_path is None:
                 logger.warning("GoogleCSEAdapter: download failed for %s", url)
                 continue
 
-            raw_text = self._extract_text(downloaded_path)
+            try:
+                raw_text = self._extract_text(downloaded_path)
+            except AdapterParseError as exc:
+                logger.warning("GoogleCSEAdapter: %s", exc)
+                continue
+
             if not raw_text.strip():
                 logger.warning("GoogleCSEAdapter: no text from %s", downloaded_path.name)
                 continue
 
-            doc_type = self._infer_document_type(result, downloaded_path)
-            pub_date = self._parse_date(result.get("published_date") or result.get("creation_date"))
+            doc_type = self.config.get("document_type", "guidance")
+            pub_date = _parse_date(result.get("snippet", ""))
 
-            doc = Document(
+            yield Document(
                 doc_id="",
                 content_hash="",
                 raw_text=raw_text[:config.MAX_DOCUMENT_CHARS],
@@ -129,120 +125,121 @@ class GoogleCSEAdapter(BaseAdapter):
                 company_name=None,
                 company_id=None,
                 csrd_wave=None,
-                country=self.config.get("country", []),
-                sector_hint=self.config.get("sector_hint", []),
+                country=self.config.get("country_hints", []),
+                sector_hint=self.config.get("sector_hints", []),
                 extraction_status="pending",
                 extraction_error=None,
             )
-            yield doc
 
     # ── Step 1: Search ────────────────────────────────────────────────────────
 
-    def _search(self, query: str) -> list[dict]:
+    def _search(self, query: str) -> Iterator[dict]:
         """
-        Run CSE search and return a flat list of result metadata dicts.
-
-        Uses GoogleCustomSearchClient for API calls and SearchManager for
-        pagination. Applies date-range chunking when date params are configured.
-
-        Returns list of result dicts with keys: link, title, mime_type,
-        file_format, published_date, creation_date, snippet.
+        Paginate through CSE results up to max_results.
+        Rotates API keys on quota errors.
+        Yields one result metadata dict per search hit.
         """
-        try:
-            from api_client import GoogleCustomSearchClient, QuotaExceededError
-            from search_manager import SearchManager
-            from metadata import extract_metadata
-        except ImportError as exc:
-            raise AdapterFetchError(
-                "google_search modules not found. Ensure google_search/ is present."
-            ) from exc
+        max_results: int = self.config.get("max_results", 20)
+        file_type: str = self.config.get("file_type", "")
+        fetched = 0
+        start = 1
 
-        api_keys = self._get_api_keys()
-        results_per_page = self.config.get("results_per_page", 10)
-        rate_limit_delay = self.config.get("rate_limit_delay", 1.0)
+        while fetched < max_results:
+            batch_size = min(_MAX_RESULTS_PER_PAGE, max_results - fetched)
+            params: dict = {
+                "key": self._current_key(),
+                "cx": self._cse_id,
+                "q": query,
+                "num": batch_size,
+                "start": start,
+            }
+            if file_type:
+                params["fileType"] = file_type
 
-        try:
-            client = GoogleCustomSearchClient(
-                search_engine_id=config.GOOGLE_CSE_ID,
-                api_keys=api_keys,
-                results_per_page=results_per_page,
-                rate_limit_delay=rate_limit_delay,
-            )
-        except ValueError as exc:
-            raise AdapterAuthError(f"Invalid CSE configuration: {exc}") from exc
+            try:
+                resp = requests.get(_CSE_ENDPOINT, params=params, timeout=_REQUEST_TIMEOUT)
+            except requests.RequestException as exc:
+                raise AdapterFetchError(f"CSE API request failed: {exc}") from exc
 
-        manager = SearchManager(client)
-        max_results = self.config.get("max_results", 50)
-        file_type = self.config.get("file_type", "pdf")
+            if resp.status_code == 429 or resp.status_code == 403:
+                self._rotate_key()
+                if self._key_index == 0:
+                    raise AdapterFetchError("All CSE API keys exhausted (quota exceeded)")
+                continue
 
-        try:
-            job = manager.search_single(
-                query=query,
-                file_type=file_type,
-                max_results=max_results,
-                metadata_extractor=extract_metadata,
-            )
-        except QuotaExceededError as exc:
-            raise AdapterFetchError(f"All CSE API keys exhausted: {exc}") from exc
-        except Exception as exc:
-            raise AdapterFetchError(f"CSE search failed: {exc}") from exc
+            if not resp.ok:
+                raise AdapterFetchError(f"CSE API error {resp.status_code}: {resp.text[:200]}")
 
-        return [r.metadata for r in job.results]
+            data = resp.json()
+            items = data.get("items", [])
+            if not items:
+                break
 
-    def _get_api_keys(self) -> list[str]:
-        """
-        Return CSE API key(s) from environment.
-        Supports a single key or a comma-separated list.
-        """
-        raw = config.GOOGLE_CSE_API_KEY
-        keys = [k.strip() for k in raw.split(",") if k.strip()]
-        if not keys:
-            raise AdapterAuthError("GOOGLE_CSE_API_KEY is empty")
-        return keys
+            for item in items:
+                yield {
+                    "link": item.get("link", ""),
+                    "title": item.get("title", ""),
+                    "snippet": item.get("snippet", ""),
+                    "mime": item.get("mime", ""),
+                }
+                fetched += 1
+                if fetched >= max_results:
+                    return
+
+            if len(items) < batch_size:
+                break
+
+            start += batch_size
+            time.sleep(0.5)
+
+    def _current_key(self) -> str:
+        return self._api_keys[self._key_index % len(self._api_keys)]
+
+    def _rotate_key(self) -> None:
+        self._key_index += 1
+        logger.info("Rotating to CSE API key %d", self._key_index % len(self._api_keys))
 
     # ── Step 2: Download ──────────────────────────────────────────────────────
 
-    def _download(self, result: dict) -> "Path | None":
+    def _download(self, url: str, download_dir: Path) -> "Path | None":
         """
-        Download a single search result to tmp/.
-
-        Uses ImprovedFileDownloader from google_search/.
-        Returns the local Path of the downloaded file, or None on failure.
+        Download a URL to download_dir. Returns the local Path or None on failure.
+        Filename is derived from the URL hash to avoid collisions.
         """
+        url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
+        suffix = ".pdf" if url.lower().endswith(".pdf") else ".html"
+        dest = download_dir / f"{url_hash}{suffix}"
+
+        if dest.exists():
+            return dest
+
         try:
-            from file_downloader import ImprovedFileDownloader
-        except ImportError as exc:
-            raise AdapterFetchError(
-                "file_downloader module not found in google_search/"
-            ) from exc
-
-        downloader = ImprovedFileDownloader(
-            base_dir=config.TMP_DIR / "cse_downloads",
-            headless=self.config.get("headless", True),
-        )
-        try:
-            status = downloader.download_result(result, use_browser=False)
-        finally:
-            downloader.close()
-
-        if status.get("success") and status.get("downloaded_file"):
-            return Path(status["downloaded_file"])
-
-        return None
+            resp = requests.get(
+                url,
+                timeout=_DOWNLOAD_TIMEOUT,
+                stream=True,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; AIPBot/1.0)"},
+            )
+            resp.raise_for_status()
+            content_type = resp.headers.get("Content-Type", "")
+            if "pdf" in content_type:
+                dest = download_dir / f"{url_hash}.pdf"
+            with open(dest, "wb") as fh:
+                for chunk in resp.iter_content(chunk_size=65536):
+                    fh.write(chunk)
+            return dest
+        except Exception as exc:
+            logger.warning("Download failed for %s: %s", url, exc)
+            return None
 
     # ── Text extraction ───────────────────────────────────────────────────────
 
     def _extract_text(self, path: Path) -> str:
-        """
-        Extract text from a downloaded file.
-        PDFs: PyPDF2. HTML: raw page source as-is.
-        """
         if path.suffix.lower() == ".pdf":
             return self._extract_pdf_text(path)
         return self._read_html_text(path)
 
     def _extract_pdf_text(self, path: Path) -> str:
-        """Extract text from PDF with PyPDF2."""
         try:
             with open(path, "rb") as fh:
                 reader = PyPDF2.PdfReader(fh)
@@ -252,28 +249,21 @@ class GoogleCSEAdapter(BaseAdapter):
             raise AdapterParseError(f"PDF extraction failed for {path.name}: {exc}") from exc
 
     def _read_html_text(self, path: Path) -> str:
-        """Read HTML file as plain text."""
         try:
             return path.read_text(encoding="utf-8", errors="replace")
         except Exception as exc:
             raise AdapterParseError(f"HTML read failed for {path.name}: {exc}") from exc
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
 
-    def _infer_document_type(self, result: dict, path: Path) -> str:
-        """Infer document_type from MIME type and file extension."""
-        mime = (result.get("mime_type") or "").lower()
-        if "pdf" in mime or path.suffix.lower() == ".pdf":
-            return self.config.get("document_type", "guidance")
-        return "news"
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-    def _parse_date(self, date_str: str | None) -> "datetime | None":
-        """Parse a date string to datetime. Returns None if unparseable."""
-        if not date_str:
-            return None
-        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d", "%d/%m/%Y", "%Y"):
-            try:
-                return datetime.strptime(str(date_str)[:len(fmt)], fmt)
-            except ValueError:
-                continue
-        return None
+def _parse_date(snippet: str) -> "datetime | None":
+    """Best-effort: extract a year from the snippet text and return Jan 1 of that year."""
+    import re
+    match = re.search(r"\b(20\d{2})\b", snippet)
+    if match:
+        try:
+            return datetime(int(match.group(1)), 1, 1)
+        except ValueError:
+            pass
+    return None

@@ -268,7 +268,7 @@ class TestGoogleCSEAdapter:
             call_order.append("search")
             return [{"link": "https://example.com/report.pdf", "title": "Test Report"}]
 
-        def mock_download(self_inner, result: dict) -> Path | None:
+        def mock_download(self_inner, url: str, download_dir: Path) -> Path | None:
             call_order.append("download")
             p = tmp_path / "report.pdf"
             p.write_bytes(b"%PDF-1.4 fake")
