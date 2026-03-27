@@ -17,7 +17,7 @@ Three-pillar architecture:
 | Phase | Status | Description |
 |-------|--------|-------------|
 | **Phase 0** | Complete | Repo restructure, schemas, adapters, tests |
-| **Phase 1** | Planned | `ingest.py`, `taxonomy.py`, `knowledge_store.py`, two-stage extraction |
+| **Phase 1** | Complete | `ingest.py`, `taxonomy.py`, `knowledge_store.py`, two-stage extraction |
 | **Phase 2** | Planned | GCF API, OECD API, output generation engines |
 
 ## Repository Structure
@@ -37,10 +37,16 @@ prompts/
   collect_v1.txt       # Stage A prompt (collect all climate passages)
   classify_v1.txt      # Stage B prompt (classify each passage)
 tests/
-  test_schemas.py      # 40 tests covering schemas and controlled vocabularies
-  test_adapters.py     # 16 tests covering CorporatePDFAdapter + GoogleCSEAdapter
+  test_schemas.py      # 40 tests — schemas and controlled vocabularies
+  test_adapters.py     # 16 tests — CorporatePDFAdapter + GoogleCSEAdapter
+  test_taxonomy.py     # 24 tests — TaxonomyLoader
+  test_extractor.py    # 20 tests — Stage A/B, triage, build_classified_passage
 _design/               # Read-only design specs and interfaces
 config.py              # Single source for all env var reads
+taxonomy.py            # TaxonomyLoader singleton — loads _design/taxonomy.yaml
+knowledge_store.py     # Azure AI Search client (only file importing the SDK)
+extractor.py           # Stage A (collect) + Stage B (classify) LLM logic
+ingest.py              # Pipeline entry point + CLI
 sources.yaml           # Active and disabled source definitions
 ```
 
