@@ -254,6 +254,7 @@ def _build_clients() -> tuple[KnowledgeStore, AsyncAzureOpenAI]:
         search_key=config.AZURE_SEARCH_KEY,
         openai_client=openai_client,
     )
+    store.ensure_indexes()
     return store, openai_client
 
 
