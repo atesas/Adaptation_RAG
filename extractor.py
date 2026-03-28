@@ -108,7 +108,7 @@ def build_classified_passage(
         content_hash=content_hash,
         source_doc_id=doc.doc_id,
         text=text,
-        page_ref=passage_dict.get("page_ref"),
+        page_ref=str(passage_dict["page_ref"]) if passage_dict.get("page_ref") is not None else None,
         char_start=passage_dict.get("char_start"),
         char_end=None,
         topic_hint=passage_dict.get("topic_hint", ""),
