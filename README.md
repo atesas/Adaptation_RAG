@@ -202,6 +202,12 @@ python ingest.py --source corporate_pdf_direct --path documents/report.pdf
 # Process a PDF and mark all passages as high-priority (P1_CLIENT)
 python ingest.py --source corporate_pdf_direct --path documents/report.pdf --client-facing
 
+# Reprocess even if already ingested (skips duplicate check)
+python ingest.py --source corporate_pdf_direct --path documents/report.pdf --force
+
+# Add a delay between chunks to stay under Azure OpenAI rate limits (S0 tier)
+python ingest.py --source corporate_pdf_direct --path documents/report.pdf --delay 15
+
 # Search → download only (review before processing)
 python ingest.py --source google_cse_corporate \
                  --path "Nestle water stress adaptation 2024" \
@@ -214,6 +220,14 @@ python ingest.py --source google_cse_policy \
 
 # Process all staged files
 python ingest.py --source corporate_pdf_direct --path tmp/staged/ --all-staged
+
+# Delete and recreate all Azure AI Search indexes (wipes all data)
+# Use after a schema change, or to start fresh
+python ingest.py --reset-indexes
+
+# Re-run Stage B classification on all auto_rejected passages
+# Use after updating taxonomy.yaml (see Taxonomy Evolution section)
+python ingest.py --reclassify
 ```
 
 Available source keys (from `sources.yaml`):
@@ -415,7 +429,55 @@ PDF / URL / query
 Auto-approval requires **all three** conditions:
 - Confidence ≥ 0.85
 - `seed_category = true` (taxonomy node marked as seeded)
-- Source type is `corporate_pdf` or `google_cse`
+- Source type is a structured API (`gcf_api`, `oecd_api`, `world_bank_api`, `unfccc_api`, `gef_api`)
+
+**Corporate PDFs and Google CSE documents always go to `pending_review`** (not auto-approved), because free-text documents have higher hallucination risk and require human verification.
+
+---
+
+## Taxonomy Evolution Loop
+
+The taxonomy in `_design/taxonomy.yaml` has two layers:
+- **Seed layer**: ~100 nodes pre-defined from ESRS E1, TCFD, IPCC AR6, CSRD. Stable. Every node has a `seed_source` field.
+- **Extension layer**: data-driven additions approved by a human reviewer after observing what the model finds in practice.
+
+The evolution loop has three phases:
+
+### Phase 1 — Emerge (automatic)
+During every ingest run, when Stage B classifies a passage into a category that doesn't exist in the taxonomy, the pipeline automatically logs it to `candidate_extensions.jsonl`:
+
+```jsonl
+{"value": "acute_water_shortage", "hint": "hazard", "source_doc_id": "unilever_2025_abc", "frequency": 1}
+{"value": "transition_risk_supply_chain", "hint": "impact", "source_doc_id": "nestle_2024_xyz", "frequency": 3}
+```
+
+Check this file periodically after running ingestion on new documents.
+
+### Phase 2 — Review (human)
+Open `candidate_extensions.jsonl` in any text editor. Group entries by `value` + `hint`. Decide for each:
+- **Approve**: add as a new node under the correct parent in `_design/taxonomy.yaml`
+- **Reject**: the model was confused; leave taxonomy unchanged
+- **Merge**: map to an existing node the model was just labelling differently
+
+When adding a new node, follow the extension pattern already in taxonomy.yaml:
+```yaml
+hazards:
+  extensions:
+    acute_water_shortage:
+      label: Acute water shortage event
+      seed_mapping: hazards.physical_acute.flood_event   # closest seed node
+      added: "2026-03-28"
+      frequency: 12
+      reviewer: "your-name"
+```
+
+### Phase 3 — Propagate (targeted re-run)
+After saving taxonomy.yaml, run:
+```bash
+python ingest.py --reclassify
+```
+
+This re-runs Stage B classification **only** on the `auto_rejected` passages that failed due to an invalid taxonomy value. It does **not** re-parse any PDFs or re-run Stage A — it uses the passage text already stored in Azure AI Search. A corpus of 1,000 passages typically reclassifies in under 5 minutes.
 
 ---
 
@@ -463,6 +525,6 @@ Phase 2 API adapters (GCF, OECD) are fully implemented but disabled by default. 
 - `knowledge_store.py` is the **only** file that imports the Azure Search SDK
 - Every function raises a named exception on failure — no silent swallowing
 - No hardcoded credentials anywhere in the codebase
-- Taxonomy at `_design/taxonomy.yaml` is **read-only** — never modify it directly
+- Taxonomy seed nodes at `_design/taxonomy.yaml` are **stable** — never remove or rename a seed node (it breaks existing passage subcategory paths). Add new nodes under `extensions:` only after human review (see Taxonomy Evolution Loop above)
 - Prompt files are versioned (`collect_v1.txt`, `classify_v2.txt`, etc.) — never modify in-place; bump the version
 - `TRUSTED_STATUSES` filter in `query_trusted()` is non-bypassable — only auto-approved, approved, or edited passages feed LLM outputs
