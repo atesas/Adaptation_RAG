@@ -251,6 +251,7 @@ def _build_clients() -> tuple[KnowledgeStore, AsyncAzureOpenAI]:
         azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
         api_key=config.AZURE_OPENAI_KEY,
         api_version="2024-08-01-preview",
+        max_retries=6,
     )
     store = KnowledgeStore(
         search_endpoint=config.AZURE_SEARCH_ENDPOINT,
