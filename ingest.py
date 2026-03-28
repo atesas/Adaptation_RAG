@@ -17,6 +17,7 @@ import re
 import shutil
 import unicodedata
 import uuid
+import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -151,7 +152,8 @@ async def ingest(
     source_key: str,
     client_facing: bool = False,
     force: bool = False,
-    inter_doc_delay: float = 0.0,
+    inter_doc_delay: float = 0.0,   # kept for backward compat; concurrency flag is preferred
+    concurrency: int = 5,
     store: Optional[KnowledgeStore] = None,
     openai_client: Optional[AsyncAzureOpenAI] = None,
 ) -> dict:
@@ -179,7 +181,7 @@ async def ingest(
     classify_prompt = config.PROMPTS_DIR / f"classify_{config.CLASSIFY_PROMPT_VERSION}.txt"
     source_type = source_cfg.get("source_type", "")
 
-    summary = {
+    summary: dict = {
         "documents_processed": 0,
         "documents_skipped_duplicate": 0,
         "passages_extracted": 0,
@@ -189,68 +191,101 @@ async def ingest(
         "errors": [],
     }
 
+    sem = asyncio.Semaphore(concurrency)
+
+    # ── Step 1: collect and normalise all chunks ──────────────────────────────
+    docs: list[Document] = []
     async for raw_doc in adapter.fetch(query_or_path):
         doc: Document = await normalize(raw_doc)
-
         if not force:
             is_dup = await store.deduplicate_document(doc.content_hash)
             if is_dup:
                 summary["documents_skipped_duplicate"] += 1
                 logger.info("Skipping duplicate document: %s", doc.source_url)
                 continue
-
         await store.register_document(doc)
-        summary["documents_processed"] += 1
+        docs.append(doc)
 
-        try:
-            passage_dicts = await run_stage_a(doc, collect_prompt, openai_client)
-        except Exception as exc:
-            err = f"Stage A failed for {doc.doc_id}: {exc}"
-            logger.error(err)
-            summary["errors"].append(err)
-            await store.update_document_status(doc.doc_id, "failed", str(exc))
-            continue
+    summary["documents_processed"] = len(docs)
+    if not docs:
+        await store.close()
+        await openai_client.close()
+        return summary
 
-        for passage_dict in passage_dicts:
+    print(
+        f"  {len(docs)} chunk(s) loaded.  Running Stage A "
+        f"(concurrency={concurrency})...",
+        flush=True,
+    )
+
+    # ── Step 2: Stage A — parallel across all chunks ──────────────────────────
+    async def _stage_a(d: Document) -> tuple[Document, list[dict]]:
+        async with sem:
             try:
-                hint = passage_dict.get("topic_hint", "")
-                tax_excerpt = taxonomy.get_taxonomy_excerpt_for_hint(hint)
-                stage_b = await run_stage_b(
-                    passage_dict, doc, tax_excerpt, classify_prompt, openai_client
-                )
-                if stage_b is None:
-                    logger.warning("Stage B returned None for a passage in %s", doc.doc_id)
-                    continue
-
-                passage = build_classified_passage(passage_dict, stage_b, doc)
-                passage = triage(passage, source_type=source_type, client_facing=client_facing)
-                await store.upsert_passage(passage)
-
-                summary["passages_extracted"] += 1
-                status = passage.validation_status.value
-                if status == "auto_approved":
-                    summary["passages_auto_approved"] += 1
-                elif status == "auto_rejected":
-                    summary["passages_auto_rejected"] += 1
-                else:
-                    summary["passages_pending_review"] += 1
-
+                return d, await run_stage_a(d, collect_prompt, openai_client)
             except Exception as exc:
-                err = f"Passage error in {doc.doc_id}: {exc}"
+                err = f"Stage A failed for {d.doc_id}: {exc}"
                 logger.error(err)
                 summary["errors"].append(err)
+                await store.update_document_status(d.doc_id, "failed", str(exc))
+                return d, []
 
-        await store.update_document_status(doc.doc_id, "extracted")
-        n = summary["documents_processed"]
-        total_p = summary["passages_extracted"]
-        print(
-            f"  [{n:>3}] {doc.title or doc.doc_id[:8]}  "
-            f"→ {len(passage_dicts)} passages  (running total: {total_p})",
-            flush=True,
-        )
-        if inter_doc_delay > 0:
-            await asyncio.sleep(inter_doc_delay)
+    a_results: list[tuple[Document, list[dict]]] = list(
+        await asyncio.gather(*[_stage_a(d) for d in docs])
+    )
 
+    all_pairs: list[tuple[Document, dict]] = [
+        (d, pd) for d, pds in a_results for pd in pds
+    ]
+    print(
+        f"  Stage A done: {len(all_pairs)} passage(s) found.  "
+        f"Running Stage B (concurrency={concurrency})...",
+        flush=True,
+    )
+
+    # ── Step 3: Stage B + upsert — parallel across all passages ──────────────
+    async def _stage_b_upsert(d: Document, pd: dict) -> Optional[ClassifiedPassage]:
+        async with sem:
+            try:
+                hint = pd.get("topic_hint", "")
+                tax_excerpt = taxonomy.get_taxonomy_excerpt_for_hint(hint)
+                stage_b = await run_stage_b(
+                    pd, d, tax_excerpt, classify_prompt, openai_client
+                )
+                if stage_b is None:
+                    logger.warning("Stage B returned None for a passage in %s", d.doc_id)
+                    return None
+                passage = build_classified_passage(pd, stage_b, d)
+                passage = triage(passage, source_type=source_type, client_facing=client_facing)
+                await store.upsert_passage(passage)
+                return passage
+            except Exception as exc:
+                err = f"Passage error in {d.doc_id}: {exc}"
+                logger.error(err)
+                summary["errors"].append(err)
+                return None
+
+    b_results: list[Optional[ClassifiedPassage]] = list(
+        await asyncio.gather(*[_stage_b_upsert(d, pd) for d, pd in all_pairs])
+    )
+
+    for passage in b_results:
+        if passage is None:
+            continue
+        summary["passages_extracted"] += 1
+        status = passage.validation_status.value
+        if status == "auto_approved":
+            summary["passages_auto_approved"] += 1
+        elif status == "auto_rejected":
+            summary["passages_auto_rejected"] += 1
+        else:
+            summary["passages_pending_review"] += 1
+
+    # ── Step 4: mark all chunks as extracted ──────────────────────────────────
+    for d, _ in a_results:
+        await store.update_document_status(d.doc_id, "extracted")
+
+    await store.close()
     await openai_client.close()
     return summary
 
@@ -441,11 +476,19 @@ TWO-STEP WORKFLOW (search first, classify later):
         help="Reprocess documents even if already in the store (skips dedup check)",
     )
     parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Max concurrent LLM calls (Stage A and Stage B run in parallel up to this limit). "
+             "Default 5. Lower to 2-3 on S0 tier if you see 429 errors.",
+    )
+    parser.add_argument(
         "--delay",
         type=float,
         default=0.0,
         metavar="SECONDS",
-        help="Sleep this many seconds between document chunks to avoid LLM rate limits (e.g. --delay 15)",
+        help="(Legacy) Sleep between chunks. Prefer --concurrency to control throughput.",
     )
     parser.add_argument(
         "--reclassify",
@@ -460,7 +503,15 @@ TWO-STEP WORKFLOW (search first, classify later):
 
     if args.reclassify:
         store, openai_client = _build_clients()
-        result = asyncio.run(reclassify_rejected(store, openai_client))
+
+        async def _reclassify():
+            try:
+                return await reclassify_rejected(store, openai_client)
+            finally:
+                await store.close()
+                await openai_client.close()
+
+        result = asyncio.run(_reclassify())
         print(f"\nReclassify complete: {result}")
         import sys; sys.exit(0)
 
@@ -504,7 +555,7 @@ TWO-STEP WORKFLOW (search first, classify later):
             result = asyncio.run(
                 ingest(str(target_dir), "corporate_pdf_direct",
                        client_facing=args.client_facing, force=args.force,
-                       inter_doc_delay=args.delay)
+                       inter_doc_delay=args.delay, concurrency=args.concurrency)
             )
             print(f"\nDone. {result}")
 
@@ -516,6 +567,7 @@ TWO-STEP WORKFLOW (search first, classify later):
                 client_facing=args.client_facing,
                 force=args.force,
                 inter_doc_delay=args.delay,
+                concurrency=args.concurrency,
             )
         )
         print(result)

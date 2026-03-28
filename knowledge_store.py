@@ -77,6 +77,12 @@ class KnowledgeStore:
 
     # ── Index provisioning ────────────────────────────────────────────────────
 
+    async def close(self) -> None:
+        """Close all underlying aiohttp connections."""
+        await self._passages_client.close()
+        await self._documents_client.close()
+        await self._validation_client.close()
+
     def ensure_indexes(self) -> None:
         """Create all three indexes if they don't already exist."""
         existing = {idx.name for idx in self._index_client.list_indexes()}
