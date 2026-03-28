@@ -249,8 +249,8 @@ class KnowledgeStore:
             "source_url": doc.source_url,
             "source_type": doc.source_type,
             "adapter": doc.adapter,
-            "publication_date": doc.publication_date.isoformat() if doc.publication_date else None,
-            "ingestion_date": doc.ingestion_date.isoformat(),
+            "publication_date": doc.publication_date.isoformat() + "Z" if doc.publication_date else None,
+            "ingestion_date": doc.ingestion_date.isoformat() + "Z",
             "reporting_year": doc.reporting_year,
             "document_type": doc.document_type,
             "company_name": doc.company_name,
@@ -349,7 +349,7 @@ class KnowledgeStore:
         patch: dict = {"passage_id": passage_id, "validation_status": status.value}
         if reviewer_id:
             patch["reviewer_id"] = reviewer_id
-            patch["reviewed_at"] = datetime.utcnow().isoformat()
+            patch["reviewed_at"] = datetime.utcnow().isoformat() + "Z"
         if notes:
             patch["review_notes"] = notes
         try:
@@ -388,7 +388,7 @@ class KnowledgeStore:
         patch["validation_status"] = ValidationStatus.EDITED.value
         patch["correction_type"] = correction_type
         patch["error_pattern_tag"] = error_pattern_tag
-        patch["reviewed_at"] = datetime.utcnow().isoformat()
+        patch["reviewed_at"] = datetime.utcnow().isoformat() + "Z"
         patch["reviewer_id"] = reviewer_id
         patch["review_notes"] = review_notes
         for field_name, orig_val in original_values.items():
@@ -436,7 +436,7 @@ class KnowledgeStore:
             "reviewer_id": reviewer_id,
             "review_notes": review_notes,
             "confidence_at_review": confidence_at_review,
-            "reviewed_at": datetime.utcnow().isoformat(),
+            "reviewed_at": datetime.utcnow().isoformat() + "Z",
             "original_values_json": _json.dumps(original_values),
             "corrected_values_json": _json.dumps(corrected_values),
         }
@@ -670,11 +670,11 @@ def _passage_to_dict(p: ClassifiedPassage) -> dict:
         "confidence_rationale": p.confidence_rationale,
         "classification_note": p.classification_note,
         "classification_model": p.classification_model,
-        "classified_at": p.classified_at.isoformat(),
+        "classified_at": p.classified_at.isoformat() + "Z",
         "validation_status": p.validation_status.value,
         "review_priority": p.review_priority.value if p.review_priority else None,
         "reviewer_id": p.reviewer_id,
-        "reviewed_at": p.reviewed_at.isoformat() if p.reviewed_at else None,
+        "reviewed_at": p.reviewed_at.isoformat() + "Z" if p.reviewed_at else None,
         "review_notes": p.review_notes,
         "original_category": p.original_category,
         "original_subcategory": p.original_subcategory,
