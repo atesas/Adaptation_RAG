@@ -313,6 +313,11 @@ TWO-STEP WORKFLOW (search first, classify later):
         help="Mark all passages as P1_CLIENT priority",
     )
     parser.add_argument(
+        "--reset-indexes",
+        action="store_true",
+        help="DELETE and recreate all Azure Search indexes (wipes all data). Run once after a schema change.",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Reprocess documents even if already in the store (skips dedup check)",
@@ -325,6 +330,18 @@ TWO-STEP WORKFLOW (search first, classify later):
         help="Sleep this many seconds between document chunks to avoid LLM rate limits (e.g. --delay 15)",
     )
     args = parser.parse_args()
+
+    if args.reset_indexes:
+        config.require_credentials()
+        from knowledge_store import KnowledgeStore
+        store = KnowledgeStore(
+            search_endpoint=config.AZURE_SEARCH_ENDPOINT,
+            search_key=config.AZURE_SEARCH_KEY,
+        )
+        print("Deleting and recreating all Azure Search indexes...")
+        store.reset_indexes()
+        print("Done. All indexes recreated with current schema.")
+        import sys; sys.exit(0)
 
     if args.download_only:
         print(f"\nSearching: {args.path!r}\nSource:    {args.source}\n")
