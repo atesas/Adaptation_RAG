@@ -134,6 +134,7 @@ def _split_prompt(prompt: str) -> tuple[str, str]:
 
 
 def _build_clients() -> tuple[KnowledgeStore, AsyncAzureOpenAI]:
+    config.require_credentials()
     openai_client = AsyncAzureOpenAI(
         azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
         api_key=config.AZURE_OPENAI_KEY,

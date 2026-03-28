@@ -1,13 +1,22 @@
 import os
 from pathlib import Path
 
+# ── Auto-load .env if present ─────────────────────────────────────────────────
+# This makes every CLI entry point work without manually exporting env vars.
+# Has no effect if the variables are already set in the environment (e.g. CI).
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=False)  # don't override vars already set in environment
+except ImportError:
+    pass  # python-dotenv not installed — rely on env vars being set externally
+
 # ── Azure AI Search ───────────────────────────────────────────────────────────
-AZURE_SEARCH_ENDPOINT  = os.environ["AZURE_SEARCH_ENDPOINT"]
-AZURE_SEARCH_KEY       = os.environ["AZURE_SEARCH_KEY"]
+AZURE_SEARCH_ENDPOINT  = os.environ.get("AZURE_SEARCH_ENDPOINT", "")
+AZURE_SEARCH_KEY       = os.environ.get("AZURE_SEARCH_KEY", "")
 
 # ── Azure OpenAI ──────────────────────────────────────────────────────────────
-AZURE_OPENAI_ENDPOINT  = os.environ["AZURE_OPENAI_ENDPOINT"]
-AZURE_OPENAI_KEY       = os.environ["AZURE_OPENAI_KEY"]
+AZURE_OPENAI_ENDPOINT  = os.environ.get("AZURE_OPENAI_ENDPOINT", "")
+AZURE_OPENAI_KEY       = os.environ.get("AZURE_OPENAI_KEY", "")
 
 # ── Model deployments ─────────────────────────────────────────────────────────
 EMBEDDING_DEPLOYMENT   = os.environ.get("EMBEDDING_DEPLOYMENT", "text-embedding-3-large")
@@ -19,9 +28,9 @@ STAGE_A_MODEL          = GPT4O_MINI_DEPLOYMENT  # extraction — cost-sensitive
 STAGE_B_MODEL          = GPT4O_MINI_DEPLOYMENT  # classification — cost-sensitive
 OUTPUT_MODEL           = GPT4O_DEPLOYMENT        # synthesis — quality-sensitive
 
-# ── Google CSE (Phase 0) ──────────────────────────────────────────────────────
-GOOGLE_CSE_API_KEY     = os.environ["GOOGLE_CSE_API_KEY"]
-GOOGLE_CSE_ID          = os.environ["GOOGLE_CSE_ID"]
+# ── Google CSE ────────────────────────────────────────────────────────────────
+GOOGLE_CSE_API_KEY     = os.environ.get("GOOGLE_CSE_API_KEY", "")
+GOOGLE_CSE_ID          = os.environ.get("GOOGLE_CSE_ID", "")
 
 # ── Structured APIs (Phase 2) ─────────────────────────────────────────────────
 GCF_API_BASE    = "https://www.greenclimate.fund/projects/api"
@@ -51,3 +60,28 @@ MAX_DOCUMENT_CHARS = 200_000
 INDEX_PASSAGES      = "adaptation-passages"
 INDEX_DOCUMENTS     = "adaptation-documents"
 INDEX_VALIDATION    = "adaptation-validation-log"
+
+
+def require_credentials() -> None:
+    """
+    Call this before making any Azure or Google API calls.
+    Raises a clear error listing every missing variable.
+    Not called at import time — so --help and tests work without credentials.
+    """
+    missing = []
+    for name, value in [
+        ("AZURE_SEARCH_ENDPOINT",  AZURE_SEARCH_ENDPOINT),
+        ("AZURE_SEARCH_KEY",       AZURE_SEARCH_KEY),
+        ("AZURE_OPENAI_ENDPOINT",  AZURE_OPENAI_ENDPOINT),
+        ("AZURE_OPENAI_KEY",       AZURE_OPENAI_KEY),
+        ("GOOGLE_CSE_API_KEY",     GOOGLE_CSE_API_KEY),
+        ("GOOGLE_CSE_ID",          GOOGLE_CSE_ID),
+    ]:
+        if not value:
+            missing.append(name)
+    if missing:
+        raise EnvironmentError(
+            "Missing required environment variables:\n"
+            + "\n".join(f"  {m}" for m in missing)
+            + "\n\nCopy .env.example to .env and fill in the values."
+        )
