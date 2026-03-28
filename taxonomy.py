@@ -52,6 +52,9 @@ class TaxonomyLoader:
         else:
             tag_list = self._taxonomy.get("sector_focus", [])
 
+        valid_categories = {
+            "VALID_CATEGORIES__use_exactly_one_as_category_field": self._top_level_nodes,
+        }
         controlled_vocab = {
             "IRO_TYPES": IRO_TYPES,
             "VALUE_CHAIN_POSITIONS": VALUE_CHAIN_POSITIONS,
@@ -59,7 +62,9 @@ class TaxonomyLoader:
             "TIME_HORIZONS": TIME_HORIZONS,
             "sector_tags": tag_list,
         }
-        return yaml.dump(excerpt, allow_unicode=True, sort_keys=False) + \
+        return yaml.dump(valid_categories, allow_unicode=True, sort_keys=False) + \
+               "\n" + \
+               yaml.dump(excerpt, allow_unicode=True, sort_keys=False) + \
                "\n# --- CONTROLLED VOCABULARIES ---\n" + \
                yaml.dump(controlled_vocab, allow_unicode=True, sort_keys=False)
 
