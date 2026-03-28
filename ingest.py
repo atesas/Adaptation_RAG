@@ -208,6 +208,7 @@ async def ingest(
 
     summary["documents_processed"] = len(docs)
     if not docs:
+        await store.close()
         await openai_client.close()
         return summary
 
@@ -284,6 +285,7 @@ async def ingest(
     for d, _ in a_results:
         await store.update_document_status(d.doc_id, "extracted")
 
+    await store.close()
     await openai_client.close()
     return summary
 
@@ -501,7 +503,15 @@ TWO-STEP WORKFLOW (search first, classify later):
 
     if args.reclassify:
         store, openai_client = _build_clients()
-        result = asyncio.run(reclassify_rejected(store, openai_client))
+
+        async def _reclassify():
+            try:
+                return await reclassify_rejected(store, openai_client)
+            finally:
+                await store.close()
+                await openai_client.close()
+
+        result = asyncio.run(_reclassify())
         print(f"\nReclassify complete: {result}")
         import sys; sys.exit(0)
 

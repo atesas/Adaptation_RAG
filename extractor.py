@@ -16,7 +16,13 @@ from openai import AsyncAzureOpenAI
 
 import config
 from schemas.document import Document
-from schemas.passage import ClassifiedPassage
+from schemas.passage import (
+    ClassifiedPassage,
+    IRO_TYPES,
+    VALUE_CHAIN_POSITIONS,
+    EVIDENCE_QUALITY_LEVELS,
+    TIME_HORIZONS,
+)
 from schemas.validation import (
     ValidationStatus,
     ReviewPriority,
@@ -87,6 +93,25 @@ async def run_stage_b(
         if stage_b is None:
             return None
 
+    # When the model intentionally nulled all fields (confidence < 0.40 per prompt rule 4),
+    # skip validation — triage() will auto_reject based on confidence = 0.0 anyway.
+    if stage_b.get("category") is None and (stage_b.get("confidence") or 0.0) == 0.0:
+        return stage_b
+
+    # Auto-correct: model often omits the top-level category prefix.
+    # e.g. category="hazards", subcategory="physical_chronic.water_stress"
+    #   → should be "hazards.physical_chronic.water_stress"
+    cat = stage_b.get("category") or ""
+    sub = stage_b.get("subcategory") or ""
+    if cat and sub and sub not in ("not_specified", "None") and not sub.startswith(cat + "."):
+        candidate = f"{cat}.{sub}"
+        if taxonomy.get_node(candidate) is not None:
+            stage_b["subcategory"] = candidate
+
+    # Clear known-invalid sentinel values for subcategory so validation treats them as absent.
+    if stage_b.get("subcategory") in ("not_specified", "None", "null"):
+        stage_b["subcategory"] = None
+
     is_valid, errors = taxonomy.validate_classification(stage_b)
     if not is_valid:
         logger.warning("Stage B invalid taxonomy values: %s", errors)
@@ -103,6 +128,11 @@ async def run_stage_b(
                 )
 
     return stage_b
+
+
+def _coerce(value, valid_set: list, default: str) -> str:
+    """Return value if it is in valid_set, otherwise return default."""
+    return value if value in valid_set else default
 
 
 def build_classified_passage(
@@ -125,10 +155,10 @@ def build_classified_passage(
         category=stage_b.get("category") or "",
         subcategory=stage_b.get("subcategory") or "",
         seed_category=bool(stage_b.get("seed_category", False)),
-        iro_type=stage_b.get("iro_type") or "not_specified",
-        value_chain_position=stage_b.get("value_chain_position") or "not_specified",
-        evidence_quality=stage_b.get("evidence_quality") or "anecdotal",
-        time_horizon=stage_b.get("time_horizon") or "unspecified",
+        iro_type=_coerce(stage_b.get("iro_type"), IRO_TYPES, "not_specified"),
+        value_chain_position=_coerce(stage_b.get("value_chain_position"), VALUE_CHAIN_POSITIONS, "not_specified"),
+        evidence_quality=_coerce(stage_b.get("evidence_quality"), EVIDENCE_QUALITY_LEVELS, "anecdotal"),
+        time_horizon=_coerce(stage_b.get("time_horizon"), TIME_HORIZONS, "unspecified"),
         geographic_scope=stage_b.get("geographic_scope") or [],
         entities=stage_b.get("entities") or [],
         sector_relevance=stage_b.get("sector_relevance") or [],
