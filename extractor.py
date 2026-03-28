@@ -36,14 +36,14 @@ async def run_stage_a(
     doc: Document, prompt_path: Path, openai_client: AsyncAzureOpenAI
 ) -> list[dict]:
     template = prompt_path.read_text(encoding="utf-8")
-    prompt = template.format(
-        source_name=doc.source_url,
-        document_type=doc.document_type,
-        reporting_year=doc.reporting_year or "unknown",
-        language=doc.language,
-        company_name=doc.company_name or "N/A",
-        document_text=_escape_braces(doc.raw_text),
-    )
+    prompt = _apply_template(template, {
+        "source_name": doc.source_url,
+        "document_type": doc.document_type,
+        "reporting_year": str(doc.reporting_year or "unknown"),
+        "language": doc.language,
+        "company_name": doc.company_name or "N/A",
+        "document_text": doc.raw_text,
+    })
     system_msg, user_msg = _split_prompt(prompt)
     result = await _call_llm(openai_client, config.STAGE_A_MODEL, system_msg, user_msg)
     if result is None:
@@ -64,16 +64,16 @@ async def run_stage_b(
     openai_client: AsyncAzureOpenAI,
 ) -> Optional[dict]:
     template = prompt_path.read_text(encoding="utf-8")
-    prompt = template.format(
-        taxonomy_excerpt=taxonomy_excerpt,
-        source_name=doc.source_url,
-        document_type=doc.document_type,
-        reporting_year=doc.reporting_year or "unknown",
-        company_name=doc.company_name or "N/A",
-        topic_hint=passage_dict.get("topic_hint", ""),
-        extraction_note=passage_dict.get("extraction_note") or "none",
-        passage_text=_escape_braces(passage_dict.get("text", "")),
-    )
+    prompt = _apply_template(template, {
+        "taxonomy_excerpt": taxonomy_excerpt,
+        "source_name": doc.source_url,
+        "document_type": doc.document_type,
+        "reporting_year": str(doc.reporting_year or "unknown"),
+        "company_name": doc.company_name or "N/A",
+        "topic_hint": passage_dict.get("topic_hint", ""),
+        "extraction_note": passage_dict.get("extraction_note") or "none",
+        "passage_text": passage_dict.get("text", ""),
+    })
     system_msg, user_msg = _split_prompt(prompt)
     result = await _call_llm(openai_client, config.STAGE_B_MODEL, system_msg, user_msg)
     if result is None:
@@ -239,6 +239,8 @@ def _parse_json_object(text: str) -> Optional[dict]:
         return None
 
 
-def _escape_braces(text: str) -> str:
-    """Escape { and } so str.format() doesn't treat them as placeholders."""
-    return text.replace("{", "{{").replace("}", "}}")
+def _apply_template(template: str, variables: dict) -> str:
+    """Replace {key} placeholders without interpreting other { } as format fields."""
+    for key, value in variables.items():
+        template = template.replace("{" + key + "}", str(value))
+    return template
