@@ -241,6 +241,13 @@ async def ingest(
                 summary["errors"].append(err)
 
         await store.update_document_status(doc.doc_id, "extracted")
+        n = summary["documents_processed"]
+        total_p = summary["passages_extracted"]
+        print(
+            f"  [{n:>3}] {doc.title or doc.doc_id[:8]}  "
+            f"→ {len(passage_dicts)} passages  (running total: {total_p})",
+            flush=True,
+        )
         if inter_doc_delay > 0:
             await asyncio.sleep(inter_doc_delay)
 
@@ -271,7 +278,13 @@ if __name__ == "__main__":
     import argparse
     import asyncio
 
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s %(message)s")
+    # Keep our own application loggers at INFO, suppress noisy SDK loggers
+    logging.getLogger("__main__").setLevel(logging.INFO)
+    logging.getLogger("extractor").setLevel(logging.INFO)
+    logging.getLogger("taxonomy").setLevel(logging.INFO)
+    logging.getLogger("knowledge_store").setLevel(logging.INFO)
+    logging.getLogger("adapters").setLevel(logging.INFO)
 
     parser = argparse.ArgumentParser(
         description="Adaptation Intelligence Platform — ingest documents",
