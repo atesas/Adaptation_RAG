@@ -92,6 +92,15 @@ async def run_stage_b(
         logger.warning("Stage B invalid taxonomy values: %s", errors)
         stage_b["confidence"] = 0.0
         stage_b["classification_note"] = "invalid_taxonomy_value"
+        for error in errors:
+            if error.startswith(("invalid category:", "subcategory path not found:")):
+                raw_value = error.split("'")[1]
+                taxonomy.record_candidate_extension(
+                    value=raw_value,
+                    hint=passage_dict.get("topic_hint", ""),
+                    source_doc_id=doc.doc_id,
+                    frequency=1,
+                )
 
     return stage_b
 

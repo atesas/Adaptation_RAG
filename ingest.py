@@ -255,6 +255,111 @@ async def ingest(
     return summary
 
 
+async def reclassify_rejected(
+    store: KnowledgeStore,
+    openai_client: AsyncAzureOpenAI,
+) -> dict:
+    """Re-run Stage B on every auto_rejected passage with classification_note='invalid_taxonomy_value'.
+
+    Call this after updating taxonomy.yaml to recover passages that were rejected
+    because the model returned an unmapped category.  Stage A is NOT re-run —
+    the passage text is already stored in Azure Search.
+    """
+    import asyncio as _asyncio
+    from datetime import datetime as _datetime
+    from schemas.document import Document as _Document
+
+    classify_prompt = config.PROMPTS_DIR / f"classify_{config.CLASSIFY_PROMPT_VERSION}.txt"
+    passages = await store.get_passages_for_reclassify()
+    summary = {
+        "examined": len(passages),
+        "reclassified": 0,
+        "still_rejected": 0,
+        "errors": [],
+    }
+    print(f"Found {len(passages)} passage(s) to reclassify...", flush=True)
+
+    # Cache document metadata to avoid repeat lookups
+    _doc_cache: dict[str, Optional[dict]] = {}
+
+    for i, passage in enumerate(passages, start=1):
+        try:
+            if passage.source_doc_id not in _doc_cache:
+                _doc_cache[passage.source_doc_id] = await store.get_document_by_id(
+                    passage.source_doc_id
+                )
+            meta = _doc_cache[passage.source_doc_id] or {}
+
+            doc_stub = _Document(
+                doc_id=passage.source_doc_id,
+                content_hash="",
+                raw_text="",
+                title=meta.get("title"),
+                language="en",
+                source_url=meta.get("source_url", "unknown"),
+                source_type=meta.get("source_type", "corporate_pdf"),
+                adapter="",
+                publication_date=None,
+                ingestion_date=_datetime.utcnow(),
+                reporting_year=meta.get("reporting_year"),
+                document_type=meta.get("document_type", "corporate_report"),
+                company_name=meta.get("company_name"),
+                company_id=None,
+                csrd_wave=None,
+                country=[],
+                sector_hint=[],
+                extraction_status="extracted",
+                extraction_error=None,
+            )
+
+            passage_dict = {
+                "text": passage.text,
+                "topic_hint": passage.topic_hint,
+                "extraction_note": passage.extraction_note,
+                "page_ref": passage.page_ref,
+                "char_start": passage.char_start,
+                "char_end": passage.char_end,
+            }
+
+            hint = passage.topic_hint or ""
+            tax_excerpt = taxonomy.get_taxonomy_excerpt_for_hint(hint)
+            stage_b = await run_stage_b(
+                passage_dict, doc_stub, tax_excerpt, classify_prompt, openai_client
+            )
+            if stage_b is None:
+                summary["errors"].append(f"Stage B returned None for {passage.passage_id}")
+                continue
+
+            new_passage = build_classified_passage(passage_dict, stage_b, doc_stub)
+            # Preserve the original passage identity so upsert updates in-place
+            new_passage.passage_id = passage.passage_id
+            new_passage.content_hash = passage.content_hash
+            new_passage.source_doc_id = passage.source_doc_id
+
+            source_type = meta.get("source_type", "corporate_pdf")
+            new_passage = triage(new_passage, source_type=source_type)
+            await store.upsert_passage(new_passage)
+
+            status = new_passage.validation_status.value
+            if status == "auto_rejected":
+                summary["still_rejected"] += 1
+            else:
+                summary["reclassified"] += 1
+
+            print(
+                f"  [{i:>4}/{len(passages)}] {status:<20} "
+                f"conf={new_passage.confidence:.2f}  {passage.passage_id[:8]}...",
+                flush=True,
+            )
+
+        except Exception as exc:
+            err = f"Reclassify error for {passage.passage_id}: {exc}"
+            logger.error(err)
+            summary["errors"].append(err)
+
+    return summary
+
+
 def _build_clients() -> tuple[KnowledgeStore, AsyncAzureOpenAI]:
     config.require_credentials()
     openai_client = AsyncAzureOpenAI(
@@ -308,8 +413,8 @@ TWO-STEP WORKFLOW (search first, classify later):
     python ingest.py --source corporate_pdf_direct --path tmp/staged/ --all-staged
 """,
     )
-    parser.add_argument("--source", required=True, help="Source key from sources.yaml")
-    parser.add_argument("--path", required=True, help="File path, URL, or search query")
+    parser.add_argument("--source", required=False, default=None, help="Source key from sources.yaml")
+    parser.add_argument("--path", required=False, default=None, help="File path, URL, or search query")
     parser.add_argument(
         "--download-only",
         action="store_true",
@@ -342,7 +447,22 @@ TWO-STEP WORKFLOW (search first, classify later):
         metavar="SECONDS",
         help="Sleep this many seconds between document chunks to avoid LLM rate limits (e.g. --delay 15)",
     )
+    parser.add_argument(
+        "--reclassify",
+        action="store_true",
+        help="Re-run Stage B on all auto_rejected passages with invalid_taxonomy_value. "
+             "Use after updating taxonomy.yaml to recover rejected passages.",
+    )
     args = parser.parse_args()
+
+    if not (args.reclassify or args.reset_indexes) and (args.source is None or args.path is None):
+        parser.error("--source and --path are required unless using --reclassify or --reset-indexes")
+
+    if args.reclassify:
+        store, openai_client = _build_clients()
+        result = asyncio.run(reclassify_rejected(store, openai_client))
+        print(f"\nReclassify complete: {result}")
+        import sys; sys.exit(0)
 
     if args.reset_indexes:
         config.require_credentials()
