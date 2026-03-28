@@ -127,7 +127,7 @@ class CorporatePDFAdapter(BaseAdapter):
         except Exception as exc:
             raise AdapterParseError(f"PyPDF2 failed to parse {path.name}: {exc}") from exc
 
-    def _split_text(self, text: str, max_chars: int = 200_000) -> list[str]:
+    def _split_text(self, text: str, max_chars: int = 30_000) -> list[str]:
         """
         Split text into segments of at most max_chars characters.
         Splits on paragraph boundaries where possible.
