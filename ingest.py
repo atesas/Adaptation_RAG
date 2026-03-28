@@ -150,6 +150,7 @@ async def ingest(
     query_or_path: str,
     source_key: str,
     client_facing: bool = False,
+    force: bool = False,
     store: Optional[KnowledgeStore] = None,
     openai_client: Optional[AsyncAzureOpenAI] = None,
 ) -> dict:
@@ -190,11 +191,12 @@ async def ingest(
     async for raw_doc in adapter.fetch(query_or_path):
         doc: Document = await normalize(raw_doc)
 
-        is_dup = await store.deduplicate_document(doc.content_hash)
-        if is_dup:
-            summary["documents_skipped_duplicate"] += 1
-            logger.info("Skipping duplicate document: %s", doc.source_url)
-            continue
+        if not force:
+            is_dup = await store.deduplicate_document(doc.content_hash)
+            if is_dup:
+                summary["documents_skipped_duplicate"] += 1
+                logger.info("Skipping duplicate document: %s", doc.source_url)
+                continue
 
         await store.register_document(doc)
         summary["documents_processed"] += 1
@@ -239,6 +241,7 @@ async def ingest(
 
         await store.update_document_status(doc.doc_id, "extracted")
 
+    await openai_client.close()
     return summary
 
 
@@ -305,6 +308,11 @@ TWO-STEP WORKFLOW (search first, classify later):
         action="store_true",
         help="Mark all passages as P1_CLIENT priority",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Reprocess documents even if already in the store (skips dedup check)",
+    )
     args = parser.parse_args()
 
     if args.download_only:
@@ -326,7 +334,8 @@ TWO-STEP WORKFLOW (search first, classify later):
         else:
             print(f"Processing {len(files)} file(s) from {target_dir} ...")
             result = asyncio.run(
-                ingest(str(target_dir), "corporate_pdf_direct", client_facing=args.client_facing)
+                ingest(str(target_dir), "corporate_pdf_direct",
+                       client_facing=args.client_facing, force=args.force)
             )
             print(f"\nDone. {result}")
 
@@ -336,6 +345,7 @@ TWO-STEP WORKFLOW (search first, classify later):
                 query_or_path=args.path,
                 source_key=args.source,
                 client_facing=args.client_facing,
+                force=args.force,
             )
         )
         print(result)
