@@ -74,6 +74,7 @@ sources:
     lookback_days: 365           # search the last 12 months
     date_chunk_days: 3           # iterate in 3-day windows (~122 windows/run)
     max_results_per_chunk: 10    # CSE max per request; 10 results × 122 windows
+    queries_per_key_limit: 100   # Google CSE free tier: 100 queries/day/key
     note: >
       Finds and downloads corporate sustainability/TCFD/CSRD reports
       for food, beverage, and agriculture companies.

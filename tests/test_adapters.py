@@ -536,3 +536,81 @@ class TestGoogleCSEAdapter:
         # but the URL appeared in both — only one result yielded
         assert len(results) == 1
         assert results[0]["link"] == "https://example.com/report.pdf"
+
+    def test_proactive_key_rotation_at_limit(self) -> None:
+        """
+        With queries_per_key_limit=2 and 2 keys, the adapter must rotate to
+        key 2 after 2 queries on key 1, then use key 2 for the remaining queries.
+        """
+        keys_used: list[str] = []
+
+        def fake_get(url: str, params: dict, timeout: int) -> "MagicMock":
+            keys_used.append(params["key"])
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.ok = True
+            mock_resp.json.return_value = {"items": []}
+            return mock_resp
+
+        with patch.dict("os.environ", {
+            "GOOGLE_CSE_API_KEY": "key-one,key-two",
+            "GOOGLE_CSE_ID": "test-cx",
+            "AZURE_SEARCH_ENDPOINT": "https://test.search.windows.net",
+            "AZURE_SEARCH_KEY": "test",
+            "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com/",
+            "AZURE_OPENAI_KEY": "test",
+        }):
+            import importlib
+            import config as cfg
+            importlib.reload(cfg)
+            from adapters.google_cse import GoogleCSEAdapter
+
+            # 3-window search, limit=2 per key → key-one used for windows 1–2,
+            # key-two used for window 3
+            adapter = GoogleCSEAdapter({
+                "document_type": "guidance",
+                "lookback_days": 9,
+                "date_chunk_days": 3,
+                "max_results_per_chunk": 10,
+                "queries_per_key_limit": 2,
+            })
+
+            with patch("adapters.google_cse.requests.get", side_effect=fake_get):
+                list(adapter._search("climate food"))
+
+        assert keys_used[:2] == ["key-one", "key-one"]
+        assert all(k == "key-two" for k in keys_used[2:])
+
+    def test_all_keys_exhausted_raises(self) -> None:
+        """When all keys hit their limit, AdapterFetchError is raised."""
+        with patch.dict("os.environ", {
+            "GOOGLE_CSE_API_KEY": "only-key",
+            "GOOGLE_CSE_ID": "test-cx",
+            "AZURE_SEARCH_ENDPOINT": "https://test.search.windows.net",
+            "AZURE_SEARCH_KEY": "test",
+            "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com/",
+            "AZURE_OPENAI_KEY": "test",
+        }):
+            import importlib
+            import config as cfg
+            importlib.reload(cfg)
+            from adapters.google_cse import GoogleCSEAdapter
+
+            adapter = GoogleCSEAdapter({
+                "document_type": "guidance",
+                "lookback_days": 9,
+                "date_chunk_days": 3,
+                "max_results_per_chunk": 10,
+                "queries_per_key_limit": 1,  # exhausted after 1 request
+            })
+
+            def fake_get(url: str, params: dict, timeout: int) -> "MagicMock":
+                mock_resp = MagicMock()
+                mock_resp.status_code = 200
+                mock_resp.ok = True
+                mock_resp.json.return_value = {"items": []}
+                return mock_resp
+
+            with patch("adapters.google_cse.requests.get", side_effect=fake_get):
+                with pytest.raises(AdapterFetchError, match="exhausted"):
+                    list(adapter._search("climate food"))
