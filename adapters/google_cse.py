@@ -57,6 +57,9 @@ class GoogleCSEAdapter(BaseAdapter):
         self._api_keys = self._get_api_keys()
         self._cse_id = self._get_cse_id()
         self._key_index = 0
+        # Track queries issued per key. Google CSE free tier = 100/day per key.
+        self._queries_per_key: list[int] = [0] * len(self._api_keys)
+        self._queries_per_key_limit: int = config_dict.get("queries_per_key_limit", 100)
 
     def _get_api_keys(self) -> list[str]:
         api_key = config.GOOGLE_CSE_API_KEY
@@ -184,23 +187,30 @@ class GoogleCSEAdapter(BaseAdapter):
             if file_type:
                 params["fileType"] = file_type
 
+            # Count this query against the current key before sending
+            self._record_query()
+            # _record_query may have rotated the key — update params with the new key
+            params["key"] = self._current_key()
+
             try:
                 resp = requests.get(_CSE_ENDPOINT, params=params, timeout=_REQUEST_TIMEOUT)
             except requests.RequestException as exc:
-                logger.warning("CSE request failed for window %s–%s: %s", after, before, exc)
-                # advance window and continue rather than aborting entire search
+                logger.warning("CSE request failed for window %s–%s: %s",
+                               sort_range, window_start, exc)
                 window_end -= timedelta(days=chunk_days)
                 window_start -= timedelta(days=chunk_days)
                 continue
 
             if resp.status_code in (429, 403):
-                self._rotate_key()
-                if self._key_index == 0:
-                    raise AdapterFetchError("All CSE API keys exhausted (quota exceeded)")
-                continue  # retry same window with new key
+                # Reactive rotation: API rejected the key (quota exceeded mid-window)
+                logger.warning("CSE key %d returned %s — rotating reactively",
+                               self._key_index % len(self._api_keys), resp.status_code)
+                self._rotate_key()  # raises if all keys exhausted
+                params["key"] = self._current_key()
+                continue  # retry same window with the new key
 
             if not resp.ok:
-                logger.warning("CSE API error %s for window %s–%s", resp.status_code, after, before)
+                logger.warning("CSE API error %s for sort range %s", resp.status_code, sort_range)
                 window_end -= timedelta(days=chunk_days)
                 window_start -= timedelta(days=chunk_days)
                 continue
@@ -226,9 +236,46 @@ class GoogleCSEAdapter(BaseAdapter):
     def _current_key(self) -> str:
         return self._api_keys[self._key_index % len(self._api_keys)]
 
+    def _record_query(self) -> None:
+        """
+        Proactive quota management: if the current key is already at its daily
+        limit, rotate to the next available key before sending the request.
+        Then increment the counter for whichever key is now active.
+        """
+        idx = self._key_index % len(self._api_keys)
+        if self._queries_per_key[idx] >= self._queries_per_key_limit:
+            logger.info(
+                "CSE key %d at %d query limit — rotating before next request",
+                idx, self._queries_per_key_limit,
+            )
+            self._rotate_key()  # raises AdapterFetchError if all keys exhausted
+            idx = self._key_index % len(self._api_keys)
+        self._queries_per_key[idx] += 1
+        logger.debug(
+            "CSE key %d: %d/%d queries used",
+            idx, self._queries_per_key[idx], self._queries_per_key_limit,
+        )
+
     def _rotate_key(self) -> None:
-        self._key_index += 1
-        logger.info("Rotating to CSE API key %d", self._key_index % len(self._api_keys))
+        """Move to the next key. Raises if all keys are exhausted for today."""
+        next_index = self._key_index + 1
+        # Check every remaining key — skip ones already at the limit
+        for offset in range(len(self._api_keys)):
+            candidate = (next_index + offset) % len(self._api_keys)
+            if self._queries_per_key[candidate] < self._queries_per_key_limit:
+                self._key_index = candidate
+                logger.info(
+                    "Rotated to CSE API key %d (%d/%d queries used)",
+                    candidate,
+                    self._queries_per_key[candidate],
+                    self._queries_per_key_limit,
+                )
+                return
+        raise AdapterFetchError(
+            f"All {len(self._api_keys)} CSE API key(s) exhausted "
+            f"({self._queries_per_key_limit} queries/key/day limit). "
+            "Add more keys to GOOGLE_CSE_API_KEY or wait until tomorrow."
+        )
 
     # ── Step 2: Download ──────────────────────────────────────────────────────
 
