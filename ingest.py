@@ -333,10 +333,17 @@ TWO-STEP WORKFLOW (search first, classify later):
 
     if args.reset_indexes:
         config.require_credentials()
+        from openai import AsyncAzureOpenAI
         from knowledge_store import KnowledgeStore
+        _oa = AsyncAzureOpenAI(
+            azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+            api_key=config.AZURE_OPENAI_KEY,
+            api_version="2024-08-01-preview",
+        )
         store = KnowledgeStore(
             search_endpoint=config.AZURE_SEARCH_ENDPOINT,
             search_key=config.AZURE_SEARCH_KEY,
+            openai_client=_oa,
         )
         print("Deleting and recreating all Azure Search indexes...")
         store.reset_indexes()
