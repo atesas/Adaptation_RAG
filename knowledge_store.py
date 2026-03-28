@@ -656,6 +656,43 @@ class KnowledgeStore:
                 raise KnowledgeStoreError(f"get_passages_for_backfill (patch) failed: {exc}") from exc
         return passages
 
+    async def get_passages_for_reclassify(self) -> list[ClassifiedPassage]:
+        """Return all auto_rejected passages whose Stage B produced an invalid taxonomy value.
+
+        These are candidates for re-classification after the taxonomy is updated.
+        Does not change their status — the caller re-runs Stage B and upserts.
+        """
+        odata_filter = (
+            f"validation_status eq '{ValidationStatus.AUTO_REJECTED.value}'"
+            f" and classification_note eq 'invalid_taxonomy_value'"
+        )
+        try:
+            results = await self._passages_client.search(
+                search_text="*",
+                filter=odata_filter,
+                top=1000,
+            )
+            passages = []
+            async for r in results:
+                passages.append(_dict_to_passage(r))
+            return passages
+        except HttpResponseError as exc:
+            raise KnowledgeStoreError(f"get_passages_for_reclassify failed: {exc}") from exc
+
+    async def get_document_by_id(self, doc_id: str) -> Optional[dict]:
+        """Fetch document metadata fields by doc_id. Returns None if not found."""
+        try:
+            result = await self._documents_client.get_document(
+                key=doc_id,
+                selected_fields=[
+                    "doc_id", "source_url", "document_type", "reporting_year",
+                    "company_name", "source_type", "title",
+                ],
+            )
+            return dict(result)
+        except HttpResponseError:
+            return None
+
 
 # ── Serialisation helpers ─────────────────────────────────────────────────────
 
