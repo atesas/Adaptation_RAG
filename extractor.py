@@ -45,13 +45,13 @@ async def run_stage_a(
         "document_text": doc.raw_text,
     })
     system_msg, user_msg = _split_prompt(prompt)
-    result = await _call_llm(openai_client, config.STAGE_A_MODEL, system_msg, user_msg)
+    result = await _call_llm(openai_client, config.STAGE_A_MODEL, system_msg, user_msg, json_object=False)
     if result is None:
         logger.error("Stage A failed for doc %s after retries", doc.doc_id)
         return []
     passages = _parse_json_array(result)
     if passages is None:
-        result2 = await _call_llm(openai_client, config.STAGE_A_MODEL, system_msg, user_msg)
+        result2 = await _call_llm(openai_client, config.STAGE_A_MODEL, system_msg, user_msg, json_object=False)
         passages = _parse_json_array(result2) if result2 else None
     return passages or []
 
@@ -199,18 +199,21 @@ async def _call_llm(
     model: str,
     system_msg: str,
     user_msg: str,
+    json_object: bool = True,
 ) -> Optional[str]:
     messages: list[dict] = []
     if system_msg:
         messages.append({"role": "system", "content": system_msg})
     messages.append({"role": "user", "content": user_msg})
     try:
-        response = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0.0,
-            response_format={"type": "json_object"},
-        )
+        kwargs: dict = {
+            "model": model,
+            "messages": messages,
+            "temperature": 0.0,
+        }
+        if json_object:
+            kwargs["response_format"] = {"type": "json_object"}
+        response = await client.chat.completions.create(**kwargs)
         return response.choices[0].message.content
     except Exception as exc:
         logger.error("LLM call failed (%s): %s", model, exc)
@@ -218,8 +221,16 @@ async def _call_llm(
 
 
 def _parse_json_array(text: str) -> Optional[list]:
+    if not text:
+        return None
+    # Strip markdown code fences if present
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = stripped.split("\n", 1)[-1]
+        stripped = stripped.rsplit("```", 1)[0].strip()
+    # Try direct parse first
     try:
-        data = json.loads(text)
+        data = json.loads(stripped)
         if isinstance(data, list):
             return data
         if isinstance(data, dict):
@@ -228,7 +239,18 @@ def _parse_json_array(text: str) -> Optional[list]:
                     return v
         return None
     except json.JSONDecodeError:
-        return None
+        pass
+    # Fall back: find first '[' ... last ']' in the text
+    start = stripped.find("[")
+    end = stripped.rfind("]")
+    if start != -1 and end > start:
+        try:
+            data = json.loads(stripped[start : end + 1])
+            if isinstance(data, list):
+                return data
+        except json.JSONDecodeError:
+            pass
+    return None
 
 
 def _parse_json_object(text: str) -> Optional[dict]:
