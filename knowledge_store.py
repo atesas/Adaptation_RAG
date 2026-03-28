@@ -90,6 +90,26 @@ class KnowledgeStore:
             self._index_client.create_index(self._validation_index_schema())
             logger.info("Created index: %s", INDEX_VALIDATION)
 
+    def reset_indexes(self) -> None:
+        """Delete all three indexes then recreate them with the current schema.
+
+        WARNING: this permanently deletes all stored passages, documents, and
+        validation log entries. Use only when the schema has changed and you
+        need a clean slate.
+        """
+        for name in [INDEX_PASSAGES, INDEX_DOCUMENTS, INDEX_VALIDATION]:
+            try:
+                self._index_client.delete_index(name)
+                logger.info("Deleted index: %s", name)
+            except Exception:
+                pass  # index didn't exist — that's fine
+        self._index_client.create_index(self._passages_index_schema())
+        logger.info("Created index: %s", INDEX_PASSAGES)
+        self._index_client.create_index(self._documents_index_schema())
+        logger.info("Created index: %s", INDEX_DOCUMENTS)
+        self._index_client.create_index(self._validation_index_schema())
+        logger.info("Created index: %s", INDEX_VALIDATION)
+
     def _passages_index_schema(self) -> SearchIndex:
         fields = [
             SimpleField(name="passage_id", type=SearchFieldDataType.String, key=True, filterable=True),

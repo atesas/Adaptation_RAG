@@ -151,6 +151,7 @@ async def ingest(
     source_key: str,
     client_facing: bool = False,
     force: bool = False,
+    inter_doc_delay: float = 0.0,
     store: Optional[KnowledgeStore] = None,
     openai_client: Optional[AsyncAzureOpenAI] = None,
 ) -> dict:
@@ -240,6 +241,8 @@ async def ingest(
                 summary["errors"].append(err)
 
         await store.update_document_status(doc.doc_id, "extracted")
+        if inter_doc_delay > 0:
+            await asyncio.sleep(inter_doc_delay)
 
     await openai_client.close()
     return summary
@@ -310,11 +313,35 @@ TWO-STEP WORKFLOW (search first, classify later):
         help="Mark all passages as P1_CLIENT priority",
     )
     parser.add_argument(
+        "--reset-indexes",
+        action="store_true",
+        help="DELETE and recreate all Azure Search indexes (wipes all data). Run once after a schema change.",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Reprocess documents even if already in the store (skips dedup check)",
     )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.0,
+        metavar="SECONDS",
+        help="Sleep this many seconds between document chunks to avoid LLM rate limits (e.g. --delay 15)",
+    )
     args = parser.parse_args()
+
+    if args.reset_indexes:
+        config.require_credentials()
+        from knowledge_store import KnowledgeStore
+        store = KnowledgeStore(
+            search_endpoint=config.AZURE_SEARCH_ENDPOINT,
+            search_key=config.AZURE_SEARCH_KEY,
+        )
+        print("Deleting and recreating all Azure Search indexes...")
+        store.reset_indexes()
+        print("Done. All indexes recreated with current schema.")
+        import sys; sys.exit(0)
 
     if args.download_only:
         print(f"\nSearching: {args.path!r}\nSource:    {args.source}\n")
@@ -336,7 +363,8 @@ TWO-STEP WORKFLOW (search first, classify later):
             print(f"Processing {len(files)} file(s) from {target_dir} ...")
             result = asyncio.run(
                 ingest(str(target_dir), "corporate_pdf_direct",
-                       client_facing=args.client_facing, force=args.force)
+                       client_facing=args.client_facing, force=args.force,
+                       inter_doc_delay=args.delay)
             )
             print(f"\nDone. {result}")
 
@@ -347,6 +375,7 @@ TWO-STEP WORKFLOW (search first, classify later):
                 source_key=args.source,
                 client_facing=args.client_facing,
                 force=args.force,
+                inter_doc_delay=args.delay,
             )
         )
         print(result)
