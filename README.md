@@ -205,8 +205,8 @@ python ingest.py --source corporate_pdf_direct --path documents/report.pdf --cli
 # Reprocess even if already ingested (skips duplicate check)
 python ingest.py --source corporate_pdf_direct --path documents/report.pdf --force
 
-# Add a delay between chunks to stay under Azure OpenAI rate limits (S0 tier)
-python ingest.py --source corporate_pdf_direct --path documents/report.pdf --delay 15
+# Control how many LLM calls run in parallel (default 5; lower to 2-3 on S0 tier)
+python ingest.py --source corporate_pdf_direct --path documents/report.pdf --concurrency 3
 
 # Search → download only (review before processing)
 python ingest.py --source google_cse_corporate \
