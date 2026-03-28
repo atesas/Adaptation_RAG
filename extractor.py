@@ -42,7 +42,7 @@ async def run_stage_a(
         reporting_year=doc.reporting_year or "unknown",
         language=doc.language,
         company_name=doc.company_name or "N/A",
-        document_text=doc.raw_text,
+        document_text=_escape_braces(doc.raw_text),
     )
     system_msg, user_msg = _split_prompt(prompt)
     result = await _call_llm(openai_client, config.STAGE_A_MODEL, system_msg, user_msg)
@@ -72,7 +72,7 @@ async def run_stage_b(
         company_name=doc.company_name or "N/A",
         topic_hint=passage_dict.get("topic_hint", ""),
         extraction_note=passage_dict.get("extraction_note") or "none",
-        passage_text=passage_dict.get("text", ""),
+        passage_text=_escape_braces(passage_dict.get("text", "")),
     )
     system_msg, user_msg = _split_prompt(prompt)
     result = await _call_llm(openai_client, config.STAGE_B_MODEL, system_msg, user_msg)
@@ -237,3 +237,8 @@ def _parse_json_object(text: str) -> Optional[dict]:
         return data if isinstance(data, dict) else None
     except json.JSONDecodeError:
         return None
+
+
+def _escape_braces(text: str) -> str:
+    """Escape { and } so str.format() doesn't treat them as placeholders."""
+    return text.replace("{", "{{").replace("}", "}}")
