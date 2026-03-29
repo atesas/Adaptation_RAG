@@ -529,6 +529,27 @@ responses:
         - "Parametric drought insurance covering 85% of our contracted grain volume"
         - "Multi-peril crop insurance programme with 3,400 smallholder farmers"
 
+    regenerative_agriculture:
+      label: "Regenerative agriculture practices"
+      seed_source: "IPCC AR6 WG2 Ch5 + FAO RECSOIL + GCF agriculture portfolio"
+      seed_ref: "Data-driven extension — added 2026-Q1"
+      definition: >
+        Farming and land management practices that restore soil health, increase
+        biodiversity, and improve the long-term resilience of agricultural systems
+        to climate variability. Distinct from crop_variety_adaptation (which focuses
+        on seed genetics) and nature_based (which focuses on ecosystem restoration):
+        regenerative_agriculture covers the full suite of agronomic practices
+        (cover cropping, no-till, agroecology, rotational grazing, composting).
+      examples:
+        - "Transition to no-till and cover cropping across 120,000 hectares of contracted farmland"
+        - "Regenerative agriculture programme with 5,000 smallholder farmers reduces soil erosion and improves drought resilience"
+        - "Rotational grazing pilot on 15 dairy farms improves pasture water retention"
+        - "Composting and organic matter return to fields cuts irrigation need by 20%"
+        - "Agroecology training for 8,000 suppliers builds long-term resilience to heat and drought"
+      sector_relevance:
+        - agriculture_food_systems
+        - food_and_beverage
+
   mitigation:
     label: "GHG emissions reduction (log but out of primary scope)"
     seed_source: "IPCC AR6 WG3"

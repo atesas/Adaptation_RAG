@@ -44,7 +44,7 @@ SECTOR_BRIEF_PROMPT_VERSION       = "v1"
 COMPANY_ASSESSMENT_PROMPT_VERSION = "v1"
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-TAXONOMY_PATH  = Path("_design/taxonomy.yaml")
+TAXONOMY_PATH  = Path(os.environ.get("TAXONOMY_PATH", "_design/taxonomy.yaml"))
 SOURCES_PATH   = Path("sources.yaml")
 PROMPTS_DIR    = Path("prompts/")
 TMP_DIR        = Path("tmp/")   # temp downloads — gitignored

@@ -511,6 +511,41 @@ class KnowledgeStore:
         except HttpResponseError as exc:
             raise KnowledgeStoreError(f"query_trusted failed: {exc}") from exc
 
+    async def query_any(
+        self,
+        text_query: str,
+        top_k: int = 20,
+        extra_filters: Optional[dict] = None,
+    ) -> list[ClassifiedPassage]:
+        """Hybrid search across ALL passages regardless of validation status.
+        Used by exploration mode where analysts want to see everything, including
+        pending_review and auto_rejected passages."""
+        odata_filter = None
+        if extra_filters:
+            clauses = [f"{k} eq '{v}'" for k, v in extra_filters.items()]
+            odata_filter = " and ".join(clauses)
+
+        embedding = await self._embed(text_query)
+        from azure.search.documents.models import VectorizedQuery
+        vector_queries = [
+            VectorizedQuery(vector=embedding, k_nearest_neighbors=top_k, fields="text_vector")
+        ]
+        try:
+            results = await self._passages_client.search(
+                search_text=text_query,
+                filter=odata_filter,
+                top=top_k,
+                vector_queries=vector_queries,
+                query_type="semantic",
+                semantic_configuration_name="default",
+            )
+            passages = []
+            async for r in results:
+                passages.append(_dict_to_passage(r))
+            return passages
+        except HttpResponseError as exc:
+            raise KnowledgeStoreError(f"query_any failed: {exc}") from exc
+
     async def query_pending_review(
         self,
         priority: Optional[ReviewPriority] = None,
