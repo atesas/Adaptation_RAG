@@ -112,6 +112,24 @@ async def run_stage_b(
     if stage_b.get("subcategory") in ("not_specified", "None", "null"):
         stage_b["subcategory"] = None
 
+    # Sanitize controlled-vocabulary fields BEFORE validation so invalid values
+    # (e.g. evidence_quality="not_specified", iro_type="impact.potential_positive")
+    # get replaced with safe defaults instead of failing validation.
+    stage_b["iro_type"] = _coerce(stage_b.get("iro_type"), IRO_TYPES, "not_specified")
+    stage_b["value_chain_position"] = _coerce(stage_b.get("value_chain_position"), VALUE_CHAIN_POSITIONS, "not_specified")
+    stage_b["evidence_quality"] = _coerce(stage_b.get("evidence_quality"), EVIDENCE_QUALITY_LEVELS, "anecdotal")
+    stage_b["time_horizon"] = _coerce(stage_b.get("time_horizon"), TIME_HORIZONS, "unspecified")
+
+    # Filter frameworks_referenced to known-valid values (drop unknowns rather than fail).
+    if isinstance(stage_b.get("frameworks_referenced"), list):
+        _VALID_FRAMEWORKS = {
+            "csrd_esrs", "eu_taxonomy", "csddd", "tcfd",
+            "ifrs_s2", "cdp", "tnfd", "gri", "sfdr",
+        }
+        stage_b["frameworks_referenced"] = [
+            f for f in stage_b["frameworks_referenced"] if f in _VALID_FRAMEWORKS
+        ]
+
     is_valid, errors = taxonomy.validate_classification(stage_b)
     if not is_valid:
         logger.warning("Stage B invalid taxonomy values: %s", errors)
