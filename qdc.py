@@ -303,8 +303,14 @@ async def _process_one_document(
 ) -> list[QDCPassage]:
     """Extract targeted passages from a single document."""
     chunks = _chunk_text(doc_text, chunk_size=chunk_size)
-    tasks = [
-        _extract_from_chunk(
+    n_chunks = len(chunks)
+    print(f"  → {n_chunks} chunks to scan", flush=True)
+
+    completed = 0
+
+    async def _tracked(offset, chunk):
+        nonlocal completed
+        result = await _extract_from_chunk(
             chunk_text=chunk,
             chunk_offset=offset,
             source_doc_id=source_doc_id,
@@ -314,9 +320,11 @@ async def _process_one_document(
             sem=sem,
             delay=delay,
         )
-        for offset, chunk in chunks
-    ]
-    batches = await asyncio.gather(*tasks)
+        completed += 1
+        print(f"  chunk {completed}/{n_chunks}  found {len(result)} passage(s)", flush=True)
+        return result
+
+    batches = await asyncio.gather(*[_tracked(offset, chunk) for offset, chunk in chunks])
     return [p for batch in batches for p in batch]
 
 
@@ -377,10 +385,15 @@ async def run_qdc(
             chunk_size=chunk_size,
         )
 
+    n_files = len(docs_by_file)
     file_results = []
-    for fp, chunks in docs_by_file.items():
+    for i, (fp, chunks) in enumerate(docs_by_file.items(), 1):
+        doc_name = Path(fp).name
+        print(f"\n[{i}/{n_files}] {doc_name}", flush=True)
         result = await _process_file(fp, chunks)
         file_results.append(result)
+        n_found = len(result)
+        print(f"  done — {n_found} passage(s) extracted", flush=True)
     all_passages = [p for result in file_results for p in result]
 
     # ── Deduplicate by (source_doc_id + text) ─────────────────────────────────
@@ -400,10 +413,11 @@ async def run_qdc(
 
     # ── Classify ──────────────────────────────────────────────────────────────
     if classify and unique_passages:
+        print(f"\nClassifying {len(unique_passages)} passage(s)...", flush=True)
         unique_passages = await _classify_batch(unique_passages, openai_client, sem)
-        logger.info("QDC: classification complete")
+        print("Classification done.", flush=True)
     elif not classify:
-        logger.info("QDC: skipping classification (--no-classify)")
+        print("\nSkipping classification (--no-classify).", flush=True)
 
     # ── Optional upsert ───────────────────────────────────────────────────────
     if upsert and store and unique_passages:
@@ -603,6 +617,13 @@ def main():
                         help="Override taxonomy file (e.g. _design/taxonomy_tight.yaml). "
                              "Defaults to TAXONOMY_PATH env var or _design/taxonomy.yaml.")
     args = parser.parse_args()
+
+    # ── Configure visible logging ─────────────────────────────────────────────
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
     if args.taxonomy:
         import config as _cfg
