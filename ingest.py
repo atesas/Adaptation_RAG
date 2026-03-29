@@ -497,7 +497,18 @@ TWO-STEP WORKFLOW (search first, classify later):
         help="Re-run Stage B on all auto_rejected passages with invalid_taxonomy_value. "
              "Use after updating taxonomy.yaml to recover rejected passages.",
     )
+    parser.add_argument(
+        "--taxonomy",
+        default=None,
+        metavar="PATH",
+        help="Override taxonomy file path (e.g. _design/taxonomy_tight.yaml). "
+             "Defaults to TAXONOMY_PATH env var or _design/taxonomy.yaml.",
+    )
     args = parser.parse_args()
+
+    if args.taxonomy:
+        import config as _cfg
+        _cfg.TAXONOMY_PATH = Path(args.taxonomy)
 
     if not (args.reclassify or args.reset_indexes) and (args.source is None or args.path is None):
         parser.error("--source and --path are required unless using --reclassify or --reset-indexes")

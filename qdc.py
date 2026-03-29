@@ -543,7 +543,14 @@ def main():
     parser.add_argument("--upsert",    "-u", action="store_true",
                         help="Also upsert extracted passages into the knowledge store")
     parser.add_argument("--concurrency", "-c", type=int, default=5, metavar="N")
+    parser.add_argument("--taxonomy",    "-t", default=None, metavar="PATH",
+                        help="Override taxonomy file (e.g. _design/taxonomy_tight.yaml). "
+                             "Defaults to TAXONOMY_PATH env var or _design/taxonomy.yaml.")
     args = parser.parse_args()
+
+    if args.taxonomy:
+        import config as _cfg
+        _cfg.TAXONOMY_PATH = Path(args.taxonomy)
 
     # Build question list
     questions: list[str] = []

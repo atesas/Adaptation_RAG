@@ -1,0 +1,145 @@
+# =============================================================================
+# taxonomy_tight.yaml
+# Minimal working taxonomy for food & beverage — use for initial runs,
+# testing prompt quality, and calibrating confidence thresholds before
+# switching to the full taxonomy.
+#
+# To activate:
+#   set TAXONOMY_PATH=_design/taxonomy_tight.yaml   (Windows)
+#   export TAXONOMY_PATH=_design/taxonomy_tight.yaml  (Mac/Linux)
+#
+# Or per-command:
+#   python ingest.py --taxonomy _design/taxonomy_tight.yaml --source ...
+#   python qdc.py    --taxonomy _design/taxonomy_tight.yaml --path ...
+#
+# When ready for the full taxonomy:
+#   unset TAXONOMY_PATH  (or remove from .env)
+# =============================================================================
+
+taxonomy_version: "tight-1.0"
+last_updated: "2026-03"
+sector_focus:
+  - food_and_beverage
+  - agriculture_food_systems
+
+# ── HAZARDS ──────────────────────────────────────────────────────────────────
+hazards:
+  label: "Climate hazards"
+
+  drought:
+    label: "Drought and water scarcity"
+    examples:
+      - "Prolonged drought in our key sourcing regions threatens ingredient availability"
+      - "Water stress index exceeds critical threshold in 3 of our top 5 sourcing countries"
+
+  extreme_heat:
+    label: "Extreme heat events"
+    examples:
+      - "Heat wave frequency has doubled in our European production locations since 2010"
+      - "Worker heat stress incidents up 40% during summer 2023"
+
+  flooding:
+    label: "Flooding and extreme rainfall"
+    examples:
+      - "Our Hamburg facility was flooded in 2021 causing €3m in damages"
+      - "Supplier farms in Bangladesh face annual monsoon flooding risk"
+
+  crop_yield_disruption:
+    label: "Crop yield and agricultural disruption"
+    examples:
+      - "Wheat yield variability increased 25% over the past decade in our sourcing regions"
+      - "Cocoa production forecast down 15% due to erratic rainfall patterns"
+
+# ── IMPACTS ──────────────────────────────────────────────────────────────────
+impacts:
+  label: "Business impacts of climate change"
+
+  supply_disruption:
+    label: "Supply chain and sourcing disruption"
+    examples:
+      - "Climate-related supplier failure caused a 3-week shortfall in oat supply"
+      - "Ingredient cost volatility attributed to climate events increased 18% YoY"
+
+  operational:
+    label: "Operational and facility impacts"
+    examples:
+      - "Production downtime at 2 facilities due to flooding totalled 14 days"
+      - "Energy costs at our factories rose 22% due to extreme summer temperatures"
+
+  financial:
+    label: "Financial exposure and stranded assets"
+    examples:
+      - "€45m of CapEx at coastal facilities is exposed to flood risk by 2035"
+      - "Climate VaR on our ingredient procurement is estimated at €120m under RCP 4.5"
+
+# ── RESPONSES ────────────────────────────────────────────────────────────────
+responses:
+  label: "Company responses and adaptation measures"
+
+  adaptation:
+    label: "Physical adaptation measures"
+
+    water_efficiency:
+      label: "Water efficiency and conservation"
+      examples:
+        - "Closed-loop water recycling reduces facility water withdrawal by 35%"
+        - "Drip irrigation across contracted growers saves 2.4 billion litres annually"
+
+    heat_management:
+      label: "Heat stress management"
+      examples:
+        - "Shift schedule changes avoid peak heat hours for outdoor workers"
+        - "Cool-roof installation on 12 distribution warehouses"
+
+    crop_variety_adaptation:
+      label: "Crop variety and seed adaptation"
+      examples:
+        - "Transition to drought-tolerant wheat varieties across contracted grower base"
+        - "Investment in heat-resistant barley breeding programme"
+
+    regenerative_agriculture:
+      label: "Regenerative agriculture practices"
+      examples:
+        - "No-till and cover cropping across 120,000 hectares of contracted farmland"
+        - "Rotational grazing pilot improves pasture water retention"
+        - "Composting programme cuts irrigation need by 20%"
+
+    infrastructure_resilience:
+      label: "Infrastructure and facility resilience"
+      examples:
+        - "Flood barriers installed at Hamburg facility at a cost of €4.2m"
+        - "Cooling systems upgraded at 8 production facilities"
+
+  supply_chain_resilience:
+    label: "Supply chain diversification and resilience"
+    examples:
+      - "Geographic diversification of cocoa sourcing across three continents"
+      - "Dual-sourcing policy for all high climate-risk ingredients"
+
+  nature_based:
+    label: "Nature-based solutions"
+    examples:
+      - "Watershed restoration covering 15,000 hectares in sourcing region"
+      - "Agroforestry integration across contracted farms"
+
+# ── GOVERNANCE ───────────────────────────────────────────────────────────────
+governance:
+  label: "Climate governance"
+
+  board_oversight:
+    label: "Board and executive oversight"
+    examples:
+      - "The Board Sustainability Committee reviews physical risk assessments quarterly"
+      - "CEO climate KPI linked to 15% of long-term incentive"
+
+  targets_kpis:
+    label: "Climate adaptation targets and KPIs"
+    examples:
+      - "Target: 100% of key ingredients from climate-resilient supply chains by 2030"
+      - "KPI: water withdrawal per unit of production reduced 30% by 2028"
+
+  risk_management:
+    label: "Climate risk management systems"
+    examples:
+      - "Physical climate risk integrated into enterprise risk register since 2022"
+      - "Annual scenario analysis covers RCP 2.6, 4.5, and 8.5"
