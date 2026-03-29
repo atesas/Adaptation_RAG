@@ -127,11 +127,12 @@ async def _extract_from_chunk(
         f"  [{q['id']}] {q['text']}" for q in questions
     )
     page_range = f"chars {chunk_offset}–{chunk_offset + len(chunk_text)}"
-    prompt = _EXTRACT_PROMPT.format(
-        questions_block=questions_block,
-        source_doc_id=source_doc_id,
-        page_range=page_range,
-        chunk_text=chunk_text,
+    prompt = (
+        _EXTRACT_PROMPT
+        .replace("{questions_block}", questions_block)
+        .replace("{source_doc_id}", source_doc_id)
+        .replace("{page_range}", page_range)
+        .replace("{chunk_text}", chunk_text)
     )
 
     async with sem:
@@ -202,13 +203,14 @@ async def _classify_batch(
             f"Text: {p.text}"
             for p in batch
         )
-        prompt = _CLASSIFY_PROMPT.format(
-            iro_types="\n".join(f"  - {v}" for v in IRO_TYPES),
-            value_chain_positions="\n".join(f"  - {v}" for v in VALUE_CHAIN_POSITIONS),
-            evidence_quality_levels="\n".join(f"  - {v}" for v in EVIDENCE_QUALITY_LEVELS),
-            taxonomy_excerpt=_build_full_taxonomy_excerpt(),
-            n_passages=len(batch),
-            passages_block=passages_block,
+        prompt = (
+            _CLASSIFY_PROMPT
+            .replace("{iro_types}",             "\n".join(f"  - {v}" for v in IRO_TYPES))
+            .replace("{value_chain_positions}",  "\n".join(f"  - {v}" for v in VALUE_CHAIN_POSITIONS))
+            .replace("{evidence_quality_levels}", "\n".join(f"  - {v}" for v in EVIDENCE_QUALITY_LEVELS))
+            .replace("{taxonomy_excerpt}",       _build_full_taxonomy_excerpt())
+            .replace("{n_passages}",             str(len(batch)))
+            .replace("{passages_block}",         passages_block)
         )
 
         async with sem:

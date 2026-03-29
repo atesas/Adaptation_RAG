@@ -3,7 +3,7 @@ that were extracted in response to specific analyst questions. Your job is to
 classify each passage into the taxonomy.
 
 For each passage, output a JSON object with these fields:
-{
+{{
   "passage_id":          "<the passage_id from the input>",
   "question_id":         "<the question_id from the input>",
   "category":            "<top-level taxonomy category>",
@@ -12,13 +12,13 @@ For each passage, output a JSON object with these fields:
   "value_chain_position":"<see valid values below>",
   "evidence_quality":    "<see valid values below>",
   "time_horizon":        "<short|medium|long|unspecified>",
-  "confidence":          <0.0–1.0>,
+  "confidence":          <0.0-1.0>,
   "confidence_rationale":"<one sentence>",
   "entities":            ["<named companies, facilities, crops, chemicals>"],
   "frameworks_referenced":["<csrd_esrs|eu_taxonomy|csddd|tcfd|ifrs_s2|cdp|tnfd|gri|sfdr>"],
   "geographic_scope":    ["<ISO country codes or region names>"],
   "classification_note": "<optional: multi_topic|low_source_quality|qualifying_language_detected>"
-}
+}}
 
 Output a JSON ARRAY — one object per passage.
 

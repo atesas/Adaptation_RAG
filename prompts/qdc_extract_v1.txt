@@ -10,12 +10,12 @@ that question. Extract them verbatim (or near-verbatim) as short atomic claims
 If a chunk contains nothing relevant to a question, omit that question from the output.
 
 Output a JSON array. Each element:
-{
+{{
   "question_id": "<the question_id from the input>",
   "question":    "<the question text>",
   "passage":     "<verbatim extracted text>",
   "page_ref":    "<page number or section heading if visible in the chunk, else null>"
-}
+}}
 
 Rules:
 - One object per extracted passage. If a question has 3 relevant passages, emit 3 objects.
