@@ -260,48 +260,17 @@ async def _classify_batch(
 
 # ── Main orchestrator ─────────────────────────────────────────────────────────
 
-async def run_qdc(
+async def _process_one_document(
+    doc_text: str,
+    source_doc_id: str,
     source_path: str,
-    questions: list[str],
+    q_list: list[dict],
     openai_client: AsyncAzureOpenAI,
-    store: Optional[KnowledgeStore] = None,
-    concurrency: int = 5,
-    upsert: bool = False,
-) -> QDCResult:
-    """
-    Full QDC pipeline:
-    1. Read source PDF/text
-    2. Chunk it
-    3. Extract targeted passages for each question from each chunk
-    4. Deduplicate
-    5. Classify
-    6. Optionally upsert into knowledge store
-    """
-    from adapters.corporate_pdf import CorporatePDFAdapter
-
-    # ── Load document text ────────────────────────────────────────────────────
-    adapter = CorporatePDFAdapter(config={})
-    doc_text = ""
-    source_doc_id = str(uuid.uuid4())
-    async for raw_doc in adapter.fetch(source_path):
-        doc_text += raw_doc.raw_text + "\n"
-        if raw_doc.title:
-            source_doc_id = raw_doc.title[:50]
-
-    if not doc_text.strip():
-        raise ValueError(f"No text extracted from {source_path}")
-
-    logger.info("QDC: extracted %d chars from %s", len(doc_text), source_path)
-
-    # ── Build question list ───────────────────────────────────────────────────
-    q_list = [{"id": f"q{i+1}", "text": q} for i, q in enumerate(questions)]
-
-    # ── Chunk and extract ─────────────────────────────────────────────────────
+    sem: asyncio.Semaphore,
+) -> list[QDCPassage]:
+    """Extract targeted passages from a single document."""
     chunks = _chunk_text(doc_text)
-    sem = asyncio.Semaphore(concurrency)
-
-    logger.info("QDC: extracting from %d chunks with %d questions", len(chunks), len(q_list))
-    extraction_tasks = [
+    tasks = [
         _extract_from_chunk(
             chunk_text=chunk,
             chunk_offset=offset,
@@ -313,19 +282,81 @@ async def run_qdc(
         )
         for offset, chunk in chunks
     ]
-    all_batches = await asyncio.gather(*extraction_tasks)
-    all_passages = [p for batch in all_batches for p in batch]
+    batches = await asyncio.gather(*tasks)
+    return [p for batch in batches for p in batch]
 
-    # ── Deduplicate by text hash ──────────────────────────────────────────────
+
+async def run_qdc(
+    source_path: str,
+    questions: list[str],
+    openai_client: AsyncAzureOpenAI,
+    store: Optional[KnowledgeStore] = None,
+    concurrency: int = 5,
+    upsert: bool = False,
+) -> QDCResult:
+    """
+    Full QDC pipeline:
+    1. Read source PDF/text file OR every PDF/txt in a folder
+    2. For each document: chunk → extract targeted passages per question
+    3. Deduplicate across all documents
+    4. Classify all unique passages
+    5. Optionally upsert into knowledge store
+    """
+    from adapters.corporate_pdf import CorporatePDFAdapter
+
+    adapter = CorporatePDFAdapter(config={})
+    q_list = [{"id": f"q{i+1}", "text": q} for i, q in enumerate(questions)]
+    sem = asyncio.Semaphore(concurrency)
+
+    # ── Collect raw documents from adapter (handles file OR folder) ───────────
+    # Group adapter chunks by source file so each file is one logical document.
+    # CorporatePDFAdapter may yield multiple Document objects per file when the
+    # file is very large (split by MAX_DOCUMENT_CHARS).
+    docs_by_file: dict[str, list] = {}
+    async for raw_doc in adapter.fetch(source_path):
+        key = raw_doc.source_url  # absolute path to the file
+        docs_by_file.setdefault(key, []).append(raw_doc)
+
+    if not docs_by_file:
+        raise ValueError(f"No text extracted from {source_path}")
+
+    logger.info("QDC: %d file(s) loaded, %d questions", len(docs_by_file), len(q_list))
+
+    # ── Extract from each file concurrently ───────────────────────────────────
+    async def _process_file(file_path: str, chunks: list) -> list[QDCPassage]:
+        # Concatenate chunks for this file (they're ordered parts of the same doc)
+        combined_text = "\n".join(c.raw_text for c in chunks)
+        # Use the file stem as source_doc_id for readable citations
+        source_doc_id = Path(file_path).stem[:60]
+        logger.info("QDC: extracting from %s (%d chars)", source_doc_id, len(combined_text))
+        return await _process_one_document(
+            doc_text=combined_text,
+            source_doc_id=source_doc_id,
+            source_path=file_path,
+            q_list=q_list,
+            openai_client=openai_client,
+            sem=sem,
+        )
+
+    file_results = await asyncio.gather(*[
+        _process_file(fp, chunks) for fp, chunks in docs_by_file.items()
+    ])
+    all_passages = [p for result in file_results for p in result]
+
+    # ── Deduplicate by (source_doc_id + text) ─────────────────────────────────
+    # Dedup per-document so identical text from different companies is kept.
     seen: set[str] = set()
     unique_passages: list[QDCPassage] = []
     for p in all_passages:
-        key = p.text.strip().lower()
+        key = f"{p.source_doc_id}::{p.text.strip().lower()}"
         if key not in seen:
             seen.add(key)
             unique_passages.append(p)
 
-    logger.info("QDC: %d unique passages extracted (%d before dedup)", len(unique_passages), len(all_passages))
+    logger.info(
+        "QDC: %d unique passages from %d file(s) (%d before dedup)",
+        len(unique_passages), len(docs_by_file), len(all_passages),
+    )
 
     # ── Classify ──────────────────────────────────────────────────────────────
     if unique_passages:
@@ -392,10 +423,11 @@ def _qdc_to_classified_passage(p: QDCPassage) -> ClassifiedPassage:
 # ── Pretty print results ──────────────────────────────────────────────────────
 
 def _print_results(result: QDCResult) -> None:
+    docs = len({p.source_doc_id for p in result.passages})
     print(f"\n{'='*72}")
     print(f"QDC Results — {result.source_path}")
     print(f"Run at: {result.run_at}")
-    print(f"Questions: {len(result.questions)}  |  Passages: {len(result.passages)}")
+    print(f"Questions: {len(result.questions)}  |  Documents: {docs}  |  Passages: {len(result.passages)}")
     print(f"{'='*72}\n")
 
     # Group by question
@@ -411,7 +443,7 @@ def _print_results(result: QDCResult) -> None:
         for p in passages:
             cat = f"{p.category}/{p.subcategory}" if p.category else "unclassified"
             conf = f"{p.confidence:.0%}" if p.confidence is not None else "n/a"
-            print(f"  → [{cat}] conf={conf}  page={p.page_ref or '?'}")
+            print(f"  → [{cat}] conf={conf}  doc={p.source_doc_id}  page={p.page_ref or '?'}")
             print(f"    {p.text[:200]}{'...' if len(p.text) > 200 else ''}")
         print()
 
@@ -422,7 +454,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Question-Driven Classification — extract and classify targeted evidence."
     )
-    parser.add_argument("--path",      "-p", required=True, help="Path to PDF or text file")
+    parser.add_argument("--path",      "-p", required=True,
+                        help="Path to a PDF/text file OR a folder of PDFs. "
+                             "All .pdf and .txt files in the folder are processed.")
     parser.add_argument("--questions", "-q", default=None,
                         help="Path to plain-text questions file (one question per line)")
     parser.add_argument("--question",  "-Q", action="append", default=[],
