@@ -35,6 +35,7 @@ import argparse
 import asyncio
 import csv
 import json
+import re
 import logging
 import uuid
 from dataclasses import asdict, dataclass
@@ -112,6 +113,46 @@ def _chunk_text(text: str, chunk_size: int = 3000, overlap: int = 200) -> list[t
     return chunks
 
 
+def _parse_json_list(raw: str) -> list:
+    """
+    Robustly extract a JSON array from a model response.
+    Handles: bare arrays, objects wrapping arrays, markdown code blocks.
+    """
+    # Strip markdown code fences
+    raw = re.sub(r"```(?:json)?\s*", "", raw).strip().rstrip("`").strip()
+
+    # Try direct parse first
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, dict):
+            # Look for any list value — try common keys first
+            for key in ("passages", "results", "items", "data", "classifications", "extractions"):
+                val = parsed.get(key)
+                if isinstance(val, list):
+                    return val
+            # Fall back to first list value found
+            for val in parsed.values():
+                if isinstance(val, list):
+                    return val
+        return []
+    except json.JSONDecodeError:
+        pass
+
+    # Try to find a JSON array anywhere in the text
+    match = re.search(r"\[.*\]", raw, re.DOTALL)
+    if match:
+        try:
+            parsed = json.loads(match.group())
+            if isinstance(parsed, list):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+
+    return []
+
+
 # ── Stage 1: Extract targeted passages from each chunk ───────────────────────
 
 async def _extract_from_chunk(
@@ -141,21 +182,13 @@ async def _extract_from_chunk(
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
             max_tokens=2000,
-            response_format={"type": "json_object"},
         )
 
     raw = response.choices[0].message.content.strip()
-    try:
-        # Model may return {"results": [...]} or just [...]
-        parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            items = parsed.get("results") or parsed.get("passages") or list(parsed.values())[0]
-        else:
-            items = parsed
-        if not isinstance(items, list):
-            return []
-    except (json.JSONDecodeError, IndexError):
-        logger.warning("QDC extract: JSON parse error for chunk at offset %d", chunk_offset)
+    items = _parse_json_list(raw)
+    if not items:
+        if raw and "[]" not in raw:
+            logger.warning("QDC extract: no passages parsed for chunk at offset %d", chunk_offset)
         return []
 
     passages = []
@@ -219,20 +252,12 @@ async def _classify_batch(
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0,
                 max_tokens=3000,
-                response_format={"type": "json_object"},
             )
 
         raw = response.choices[0].message.content.strip()
-        try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, dict):
-                items = parsed.get("results") or parsed.get("classifications") or list(parsed.values())[0]
-            else:
-                items = parsed
-            if not isinstance(items, list):
-                return batch  # unmodified
-        except (json.JSONDecodeError, IndexError):
-            logger.warning("QDC classify: JSON parse error in batch")
+        items = _parse_json_list(raw)
+        if not items:
+            logger.warning("QDC classify: no classifications parsed in batch")
             return batch
 
         # Map results back to passages by passage_id

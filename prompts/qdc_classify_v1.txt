@@ -20,7 +20,7 @@ For each passage, output a JSON object with these fields:
   "classification_note": "<optional: multi_topic|low_source_quality|qualifying_language_detected>"
 }}
 
-Output a JSON ARRAY — one object per passage.
+Output ONLY a raw JSON array (no markdown, no explanation) — one object per passage.
 
 ---
 VALID VALUES:
