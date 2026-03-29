@@ -341,9 +341,10 @@ async def run_qdc(
             sem=sem,
         )
 
-    file_results = await asyncio.gather(*[
-        _process_file(fp, chunks) for fp, chunks in docs_by_file.items()
-    ])
+    file_results = []
+    for fp, chunks in docs_by_file.items():
+        result = await _process_file(fp, chunks)
+        file_results.append(result)
     all_passages = [p for result in file_results for p in result]
 
     # ── Deduplicate by (source_doc_id + text) ─────────────────────────────────
@@ -544,7 +545,9 @@ def main():
                              "Also writes a *_detail.csv with one row per passage.")
     parser.add_argument("--upsert",    "-u", action="store_true",
                         help="Also upsert extracted passages into the knowledge store")
-    parser.add_argument("--concurrency", "-c", type=int, default=5, metavar="N")
+    parser.add_argument("--concurrency", "-c", type=int, default=3, metavar="N",
+                        help="Max parallel LLM calls per document (default: 3). "
+                             "Lower if you hit timeouts; raise if you have high TPM quota.")
     parser.add_argument("--taxonomy",    "-t", default=None, metavar="PATH",
                         help="Override taxonomy file (e.g. _design/taxonomy_tight.yaml). "
                              "Defaults to TAXONOMY_PATH env var or _design/taxonomy.yaml.")
@@ -569,6 +572,8 @@ def main():
         azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
         api_key=config.AZURE_OPENAI_KEY,
         api_version="2024-08-01-preview",
+        timeout=120.0,
+        max_retries=3,
     )
     store = None
     if args.upsert:
