@@ -160,9 +160,10 @@ async def _extract_from_chunk(
     chunk_offset: int,
     source_doc_id: str,
     source_path: str,
-    questions: list[dict],   # [{"id": "q1", "text": "..."}]
+    questions: list[dict],
     openai_client: AsyncAzureOpenAI,
     sem: asyncio.Semaphore,
+    delay: float = 0.0,
 ) -> list[QDCPassage]:
     questions_block = "\n".join(
         f"  [{q['id']}] {q['text']}" for q in questions
@@ -177,6 +178,8 @@ async def _extract_from_chunk(
     )
 
     async with sem:
+        if delay:
+            await asyncio.sleep(delay)
         response = await openai_client.chat.completions.create(
             model=config.STAGE_A_MODEL,
             messages=[{"role": "user", "content": prompt}],
@@ -295,9 +298,11 @@ async def _process_one_document(
     q_list: list[dict],
     openai_client: AsyncAzureOpenAI,
     sem: asyncio.Semaphore,
+    delay: float = 0.0,
+    chunk_size: int = 2000,
 ) -> list[QDCPassage]:
     """Extract targeted passages from a single document."""
-    chunks = _chunk_text(doc_text)
+    chunks = _chunk_text(doc_text, chunk_size=chunk_size)
     tasks = [
         _extract_from_chunk(
             chunk_text=chunk,
@@ -307,6 +312,7 @@ async def _process_one_document(
             questions=q_list,
             openai_client=openai_client,
             sem=sem,
+            delay=delay,
         )
         for offset, chunk in chunks
     ]
@@ -319,8 +325,10 @@ async def run_qdc(
     questions: list[str],
     openai_client: AsyncAzureOpenAI,
     store: Optional[KnowledgeStore] = None,
-    concurrency: int = 5,
+    concurrency: int = 3,
     upsert: bool = False,
+    delay: float = 0.0,
+    chunk_size: int = 2000,
 ) -> QDCResult:
     """
     Full QDC pipeline:
@@ -364,6 +372,8 @@ async def run_qdc(
             q_list=q_list,
             openai_client=openai_client,
             sem=sem,
+            delay=delay,
+            chunk_size=chunk_size,
         )
 
     file_results = []
@@ -570,9 +580,15 @@ def main():
                              "Also writes a *_detail.csv with one row per passage.")
     parser.add_argument("--upsert",    "-u", action="store_true",
                         help="Also upsert extracted passages into the knowledge store")
-    parser.add_argument("--concurrency", "-c", type=int, default=3, metavar="N",
-                        help="Max parallel LLM calls per document (default: 3). "
-                             "Lower if you hit timeouts; raise if you have high TPM quota.")
+    parser.add_argument("--concurrency", "-c", type=int, default=1, metavar="N",
+                        help="Max parallel LLM calls per document (default: 1). "
+                             "Raise to 3-5 if you have a high TPM quota.")
+    parser.add_argument("--delay",       "-d", type=float, default=3.0, metavar="SECONDS",
+                        help="Seconds to wait between LLM calls (default: 3). "
+                             "Increase if you hit 429 rate-limit errors.")
+    parser.add_argument("--chunk-size",  default=2000, type=int, metavar="N",
+                        help="Characters per chunk (default: 2000). "
+                             "Smaller = fewer tokens per request = less rate-limit pressure.")
     parser.add_argument("--taxonomy",    "-t", default=None, metavar="PATH",
                         help="Override taxonomy file (e.g. _design/taxonomy_tight.yaml). "
                              "Defaults to TAXONOMY_PATH env var or _design/taxonomy.yaml.")
@@ -617,6 +633,8 @@ def main():
                 store=store,
                 concurrency=args.concurrency,
                 upsert=args.upsert,
+                delay=args.delay,
+                chunk_size=args.chunk_size,
             )
             _print_results(result)
             if args.output:
