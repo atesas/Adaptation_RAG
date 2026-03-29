@@ -33,6 +33,7 @@ HINT_TO_NODES: dict[str, list[str]] = {
     "scenario":     ["scenarios"],
     "regulatory":   ["frameworks"],
     "supply_chain": ["value_chain_position", "responses.supply_chain_resilience"],
+    "agriculture":  ["responses.adaptation", "responses.nature_based"],
 }
 
 # Always included — cross-cutting, needed for every classification
