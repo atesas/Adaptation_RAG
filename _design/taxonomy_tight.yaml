@@ -122,6 +122,32 @@ responses:
       - "Watershed restoration covering 15,000 hectares in sourcing region"
       - "Agroforestry integration across contracted farms"
 
+# ── OUT OF SCOPE (log and skip — do NOT classify here) ───────────────────────
+out_of_scope:
+  label: "Topics outside this taxonomy's focus"
+  note: >
+    Use this category ONLY to flag passages that are clearly out of scope.
+    Do NOT force-fit out-of-scope content into adaptation nodes.
+
+  mitigation:
+    label: "GHG emissions reduction and net-zero targets (OUT OF SCOPE)"
+    note: >
+      Mitigation is explicitly excluded from this taxonomy. If a passage is
+      primarily about reducing emissions, carbon credits, net-zero commitments,
+      Scope 1/2/3 targets, or renewable energy — classify it here with
+      confidence=0.0 so it is auto-rejected and not mixed with adaptation data.
+    examples:
+      - "We target net-zero emissions across our value chain by 2050"
+      - "Scope 3 emissions reduced 18% through supplier engagement programme"
+      - "100% renewable electricity across our owned operations by 2030"
+      - "Carbon credits purchased to offset residual emissions"
+
+  other:
+    label: "Other non-adaptation content (OUT OF SCOPE)"
+    note: >
+      Use for passages about financial performance, marketing, product launches,
+      HR, diversity, or any topic with no climate adaptation relevance.
+
 # ── GOVERNANCE ───────────────────────────────────────────────────────────────
 governance:
   label: "Climate governance"
