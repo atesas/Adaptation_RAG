@@ -113,6 +113,7 @@ IRO_TYPES: list[str] = [
     "impact.actual_negative",
     "impact.potential_negative",
     "impact.actual_positive",
+    "impact.potential_positive",
     "risk.physical_acute_risk",
     "risk.physical_chronic_risk",
     "risk.transition_risk.policy_legal",
