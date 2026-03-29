@@ -329,6 +329,7 @@ async def run_qdc(
     upsert: bool = False,
     delay: float = 0.0,
     chunk_size: int = 2000,
+    classify: bool = True,
 ) -> QDCResult:
     """
     Full QDC pipeline:
@@ -398,9 +399,11 @@ async def run_qdc(
     )
 
     # ── Classify ──────────────────────────────────────────────────────────────
-    if unique_passages:
+    if classify and unique_passages:
         unique_passages = await _classify_batch(unique_passages, openai_client, sem)
         logger.info("QDC: classification complete")
+    elif not classify:
+        logger.info("QDC: skipping classification (--no-classify)")
 
     # ── Optional upsert ───────────────────────────────────────────────────────
     if upsert and store and unique_passages:
@@ -522,9 +525,13 @@ def _save_csv(result: QDCResult, csv_path: str) -> None:
                 else:
                     cells = []
                     for p in passages:
-                        cat   = p.subcategory or p.category or "?"
-                        conf  = f"{p.confidence:.0%}" if p.confidence is not None else "?"
-                        cells.append(f"{p.text.strip()} [{cat} | {conf}]")
+                        text = p.text.strip()
+                        if p.category:
+                            cat  = p.subcategory or p.category
+                            conf = f"{p.confidence:.0%}" if p.confidence is not None else "?"
+                            cells.append(f"{text} [{cat} | {conf}]")
+                        else:
+                            cells.append(text)
                     row.append(" || ".join(cells))
             writer.writerow(row)
 
@@ -578,6 +585,9 @@ def main():
     parser.add_argument("--csv",       "-C", default=None, metavar="PATH",
                         help="Save pivot CSV (documents × questions) to this path. "
                              "Also writes a *_detail.csv with one row per passage.")
+    parser.add_argument("--no-classify", action="store_true",
+                        help="Skip taxonomy classification — extract answers only. "
+                             "Faster and cheaper; results still saved to CSV.")
     parser.add_argument("--upsert",    "-u", action="store_true",
                         help="Also upsert extracted passages into the knowledge store")
     parser.add_argument("--concurrency", "-c", type=int, default=1, metavar="N",
@@ -635,6 +645,7 @@ def main():
                 upsert=args.upsert,
                 delay=args.delay,
                 chunk_size=args.chunk_size,
+                classify=not args.no_classify,
             )
             _print_results(result)
             if args.output:
