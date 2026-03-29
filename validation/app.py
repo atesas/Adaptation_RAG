@@ -257,7 +257,8 @@ for idx, passage in enumerate(passages):
                 error_pattern = st.selectbox(
                     "Error pattern (if editing)",
                     ["—", "evidence_quality_inflation", "iro_misclassification",
-                     "scope_collapse", "category_boundary", "hallucinated_entity"],
+                     "scope_collapse", "category_boundary", "hallucinated_entity",
+                     "multi_topic"],
                     key=f"err_{passage.passage_id}",
                 )
                 review_notes = st.text_area(
