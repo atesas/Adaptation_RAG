@@ -37,7 +37,7 @@ GCF_API_BASE    = "https://www.greenclimate.fund/projects/api"
 OECD_API_BASE   = "https://stats.oecd.org/SDMX-JSON/data/CRS"
 
 # ── Active prompt versions ────────────────────────────────────────────────────
-COLLECT_PROMPT_VERSION            = "v1"
+COLLECT_PROMPT_VERSION            = "v2"
 CLASSIFY_PROMPT_VERSION           = "v1"
 NEWSLETTER_PROMPT_VERSION         = "v1"
 SECTOR_BRIEF_PROMPT_VERSION       = "v1"
