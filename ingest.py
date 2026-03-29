@@ -30,6 +30,7 @@ from adapters.base import BaseAdapter
 from extractor import build_classified_passage, run_stage_a, run_stage_b, triage
 from knowledge_store import KnowledgeStore
 from schemas.document import Document
+from schemas.passage import ClassifiedPassage
 from taxonomy import taxonomy
 
 logger = logging.getLogger(__name__)
