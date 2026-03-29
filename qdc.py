@@ -33,6 +33,7 @@
 
 import argparse
 import asyncio
+import csv
 import json
 import logging
 import uuid
@@ -448,6 +449,79 @@ def _print_results(result: QDCResult) -> None:
         print()
 
 
+# ── CSV export ───────────────────────────────────────────────────────────────
+
+def _save_csv(result: QDCResult, csv_path: str) -> None:
+    """
+    Save results as a pivot table CSV:
+      - One row per document
+      - One column per question (header = question text)
+      - Each cell contains all matching passages for that doc+question,
+        separated by ' || ', with [category | conf%] appended to each passage
+    Also writes a companion detail CSV (*_detail.csv) with one row per passage
+    for deeper analysis.
+    """
+    # ── Build index: {source_doc_id: {question_id: [passages]}} ──────────────
+    index: dict[str, dict[str, list[QDCPassage]]] = {}
+    for p in result.passages:
+        index.setdefault(p.source_doc_id, {}).setdefault(p.question_id, []).append(p)
+
+    all_docs = sorted(index.keys())
+    q_ids    = [f"q{i+1}" for i in range(len(result.questions))]
+
+    # ── Pivot CSV ─────────────────────────────────────────────────────────────
+    pivot_path = csv_path
+    with open(pivot_path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        # Header: document + one column per question
+        writer.writerow(["document"] + result.questions)
+        for doc_id in all_docs:
+            row = [doc_id]
+            for qid in q_ids:
+                passages = index[doc_id].get(qid, [])
+                if not passages:
+                    row.append("")
+                else:
+                    cells = []
+                    for p in passages:
+                        cat   = p.subcategory or p.category or "?"
+                        conf  = f"{p.confidence:.0%}" if p.confidence is not None else "?"
+                        cells.append(f"{p.text.strip()} [{cat} | {conf}]")
+                    row.append(" || ".join(cells))
+            writer.writerow(row)
+
+    # ── Detail CSV (one row per passage) ─────────────────────────────────────
+    detail_path = Path(csv_path).with_stem(Path(csv_path).stem + "_detail")
+    with open(detail_path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        writer.writerow([
+            "document", "question_id", "question", "text",
+            "category", "subcategory", "iro_type",
+            "value_chain_position", "evidence_quality", "time_horizon",
+            "confidence", "page_ref", "entities", "frameworks_referenced",
+        ])
+        for p in result.passages:
+            writer.writerow([
+                p.source_doc_id,
+                p.question_id,
+                p.question,
+                p.text,
+                p.category or "",
+                p.subcategory or "",
+                p.iro_type or "",
+                p.value_chain_position or "",
+                p.evidence_quality or "",
+                p.time_horizon or "",
+                f"{p.confidence:.2f}" if p.confidence is not None else "",
+                p.page_ref or "",
+                "; ".join(p.entities or []),
+                "; ".join(p.frameworks_referenced or []),
+            ])
+
+    print(f"Pivot CSV saved to   {pivot_path}")
+    print(f"Detail CSV saved to  {detail_path}")
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main():
@@ -463,6 +537,9 @@ def main():
                         help="Inline question (repeatable). Used if --questions not provided.")
     parser.add_argument("--output",    "-o", default=None,
                         help="Save results as JSON to this path")
+    parser.add_argument("--csv",       "-C", default=None, metavar="PATH",
+                        help="Save pivot CSV (documents × questions) to this path. "
+                             "Also writes a *_detail.csv with one row per passage.")
     parser.add_argument("--upsert",    "-u", action="store_true",
                         help="Also upsert extracted passages into the knowledge store")
     parser.add_argument("--concurrency", "-c", type=int, default=5, metavar="N")
@@ -514,7 +591,9 @@ def main():
                     ],
                 }
                 Path(args.output).write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
-                print(f"Results saved to {args.output}")
+                print(f"JSON saved to {args.output}")
+            if args.csv:
+                _save_csv(result, args.csv)
         finally:
             await openai_client.close()
             if store:
