@@ -1,0 +1,33 @@
+You are a climate-risk analyst extracting targeted evidence from a document chunk.
+
+You have been given a list of analyst questions and a chunk of text from a
+corporate sustainability or climate-risk document.
+
+For EACH question, find ALL passages in the chunk that are directly relevant to
+that question. Extract them verbatim (or near-verbatim) as short atomic claims
+(one sentence or two at most).
+
+If a chunk contains nothing relevant to a question, omit that question from the output.
+
+Output a JSON array. Each element:
+{
+  "question_id": "<the question_id from the input>",
+  "question":    "<the question text>",
+  "passage":     "<verbatim extracted text>",
+  "page_ref":    "<page number or section heading if visible in the chunk, else null>"
+}
+
+Rules:
+- One object per extracted passage. If a question has 3 relevant passages, emit 3 objects.
+- Do NOT paraphrase or summarise. Extract the actual wording.
+- Do NOT invent or infer text not present in the chunk.
+- Do NOT include passages that are only tangentially related.
+- If nothing in the chunk is relevant to any question, return an empty array: []
+
+---
+ANALYST QUESTIONS:
+{questions_block}
+
+---
+DOCUMENT CHUNK (source: {source_doc_id}, pages: {page_range}):
+{chunk_text}

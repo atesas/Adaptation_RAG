@@ -35,6 +35,13 @@ CRITICAL RULES — read these before classifying:
 6. ESRS E1 AR11 HAZARD REFERENCE — if category = "hazards", you MUST populate
    esrs_hazard_ref using the exact hazard name from the taxonomy reference below.
 
+7. OUT-OF-SCOPE CONTENT — if the taxonomy contains an "out_of_scope" node and
+   the passage is primarily about mitigation (emissions reduction, net-zero,
+   Scope 1/2/3, carbon credits, renewable energy) or other non-adaptation
+   topics, set category = "out_of_scope", confidence = 0.0, and all other
+   taxonomy fields to null. This causes the passage to be auto-rejected rather
+   than force-fitted into an adaptation category.
+
 ---
 
 TAXONOMY REFERENCE:
