@@ -1,0 +1,14 @@
+How many employees does the company have?
+Where is the company's headquarters located?
+Is the company obliged to follow the CSRD (Corporate Sustainability Due Diligence Directive)?
+Does the company follow any other reporting frameworks besides the CSRD?
+What commodities does the company source from its suppliers, and from which regions?
+What climate hazards or physical risks have been identified in the company's value chain, including both its own operations and those of its suppliers?
+What climate adaptation actions have been identified by the company?
+Has the company acknowledged that the commodities it sources are subject to climate hazards or risks?
+Does the company explicitly link specific commodities to specific climate risks?
+Does the company quantify the extent to which commodities are subject to climate hazards?
+Has the company identified any potential or ongoing adaptation actions?
+Does the company have a formal adaptation strategy?
+Does the company measure climate adaptation or resilience quantitatively against predefined targets?
+What percentage of the company's CAPEX and OPEX is specifically allocated to climate adaptation?
