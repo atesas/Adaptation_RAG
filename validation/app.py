@@ -55,6 +55,86 @@ def run_async(coro):
     return asyncio.run(coro)
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _find_index(options: list[str], value: str) -> int:
+    try:
+        return options.index(value)
+    except ValueError:
+        return 0
+
+
+def _handle_decision(
+    store: KnowledgeStore,
+    passage: ClassifiedPassage,
+    action: str,
+    new_subcategory: str,
+    new_iro: str,
+    new_evidence: str,
+    new_vcp: str,
+    new_time: str,
+    error_pattern: str | None,
+    review_notes: str,
+    reviewer_id: str,
+) -> None:
+    pid = passage.passage_id
+
+    if action == "Approve":
+        run_async(store.update_validation_status(
+            pid, ValidationStatus.APPROVED,
+            reviewer_id=reviewer_id, notes=review_notes or None,
+        ))
+        st.success(f"Approved passage {pid[:8]}…")
+
+    elif action == "Edit & Approve":
+        corrections: dict = {}
+        if new_subcategory != passage.subcategory:
+            category = new_subcategory.split(".")[0] if "." in new_subcategory else new_subcategory
+            corrections["category"] = category
+            corrections["subcategory"] = new_subcategory
+        if new_iro != passage.iro_type:
+            corrections["iro_type"] = new_iro
+        if new_evidence != passage.evidence_quality:
+            corrections["evidence_quality"] = new_evidence
+        if new_vcp != passage.value_chain_position:
+            corrections["value_chain_position"] = new_vcp
+        if new_time != passage.time_horizon:
+            corrections["time_horizon"] = new_time
+
+        if corrections:
+            correction_type = next(iter(corrections))
+            run_async(store.apply_human_correction(
+                passage_id=pid,
+                corrections=corrections,
+                reviewer_id=reviewer_id,
+                correction_type=correction_type,
+                error_pattern_tag=error_pattern,
+                review_notes=review_notes or "Human correction",
+            ))
+            st.success(f"Edited and approved passage {pid[:8]}… ({len(corrections)} fields changed)")
+        else:
+            run_async(store.update_validation_status(
+                pid, ValidationStatus.APPROVED,
+                reviewer_id=reviewer_id, notes=review_notes or None,
+            ))
+            st.success(f"Approved passage {pid[:8]}… (no changes)")
+
+    elif action == "Reject":
+        run_async(store.update_validation_status(
+            pid, ValidationStatus.REJECTED,
+            reviewer_id=reviewer_id, notes=review_notes or None,
+        ))
+        st.warning(f"Rejected passage {pid[:8]}…")
+
+    elif action == "Flag for escalation":
+        run_async(store.update_validation_status(
+            pid, ValidationStatus.FLAGGED,
+            reviewer_id=reviewer_id, notes=review_notes or None,
+        ))
+        run_async(store.set_review_priority(pid, ReviewPriority.P1_CLIENT))
+        st.warning(f"Flagged passage {pid[:8]}… for escalation")
+
+
 # ── Sidebar — filters ─────────────────────────────────────────────────────────
 
 st.sidebar.title("AIP Review Queue")
@@ -196,83 +276,3 @@ for idx, passage in enumerate(passages):
                     reviewer_id=reviewer_id,
                 )
                 st.rerun()
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _find_index(options: list[str], value: str) -> int:
-    try:
-        return options.index(value)
-    except ValueError:
-        return 0
-
-
-def _handle_decision(
-    store: KnowledgeStore,
-    passage: ClassifiedPassage,
-    action: str,
-    new_subcategory: str,
-    new_iro: str,
-    new_evidence: str,
-    new_vcp: str,
-    new_time: str,
-    error_pattern: str | None,
-    review_notes: str,
-    reviewer_id: str,
-) -> None:
-    pid = passage.passage_id
-
-    if action == "Approve":
-        run_async(store.update_validation_status(
-            pid, ValidationStatus.APPROVED,
-            reviewer_id=reviewer_id, notes=review_notes or None,
-        ))
-        st.success(f"Approved passage {pid[:8]}…")
-
-    elif action == "Edit & Approve":
-        corrections: dict = {}
-        if new_subcategory != passage.subcategory:
-            category = new_subcategory.split(".")[0] if "." in new_subcategory else new_subcategory
-            corrections["category"] = category
-            corrections["subcategory"] = new_subcategory
-        if new_iro != passage.iro_type:
-            corrections["iro_type"] = new_iro
-        if new_evidence != passage.evidence_quality:
-            corrections["evidence_quality"] = new_evidence
-        if new_vcp != passage.value_chain_position:
-            corrections["value_chain_position"] = new_vcp
-        if new_time != passage.time_horizon:
-            corrections["time_horizon"] = new_time
-
-        if corrections:
-            correction_type = next(iter(corrections))
-            run_async(store.apply_human_correction(
-                passage_id=pid,
-                corrections=corrections,
-                reviewer_id=reviewer_id,
-                correction_type=correction_type,
-                error_pattern_tag=error_pattern,
-                review_notes=review_notes or "Human correction",
-            ))
-            st.success(f"Edited and approved passage {pid[:8]}… ({len(corrections)} fields changed)")
-        else:
-            run_async(store.update_validation_status(
-                pid, ValidationStatus.APPROVED,
-                reviewer_id=reviewer_id, notes=review_notes or None,
-            ))
-            st.success(f"Approved passage {pid[:8]}… (no changes)")
-
-    elif action == "Reject":
-        run_async(store.update_validation_status(
-            pid, ValidationStatus.REJECTED,
-            reviewer_id=reviewer_id, notes=review_notes or None,
-        ))
-        st.warning(f"Rejected passage {pid[:8]}…")
-
-    elif action == "Flag for escalation":
-        run_async(store.update_validation_status(
-            pid, ValidationStatus.FLAGGED,
-            reviewer_id=reviewer_id, notes=review_notes or None,
-        ))
-        run_async(store.set_review_priority(pid, ReviewPriority.P1_CLIENT))
-        st.warning(f"Flagged passage {pid[:8]}… for escalation")
