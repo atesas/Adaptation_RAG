@@ -51,14 +51,15 @@ def get_store() -> KnowledgeStore:
     )
 
 
-def run_async(coro):
+@st.cache_resource
+def _get_event_loop():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
+    return loop
+
+
+def run_async(coro):
+    return _get_event_loop().run_until_complete(coro)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
