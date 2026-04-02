@@ -30,6 +30,7 @@ from schemas.validation import (
     AUTO_REJECT_CONFIDENCE_THRESHOLD,
 )
 from taxonomy import taxonomy
+from utils.json_parse import parse_json_array, parse_json_object
 
 logger = logging.getLogger(__name__)
 
@@ -277,45 +278,9 @@ async def _call_llm(
         return None
 
 
-def _parse_json_array(text: str) -> Optional[list]:
-    if not text:
-        return None
-    # Strip markdown code fences if present
-    stripped = text.strip()
-    if stripped.startswith("```"):
-        stripped = stripped.split("\n", 1)[-1]
-        stripped = stripped.rsplit("```", 1)[0].strip()
-    # Try direct parse first
-    try:
-        data = json.loads(stripped)
-        if isinstance(data, list):
-            return data
-        if isinstance(data, dict):
-            for v in data.values():
-                if isinstance(v, list):
-                    return v
-        return None
-    except json.JSONDecodeError:
-        pass
-    # Fall back: find first '[' ... last ']' in the text
-    start = stripped.find("[")
-    end = stripped.rfind("]")
-    if start != -1 and end > start:
-        try:
-            data = json.loads(stripped[start : end + 1])
-            if isinstance(data, list):
-                return data
-        except json.JSONDecodeError:
-            pass
-    return None
-
-
-def _parse_json_object(text: str) -> Optional[dict]:
-    try:
-        data = json.loads(text)
-        return data if isinstance(data, dict) else None
-    except json.JSONDecodeError:
-        return None
+# JSON parsing — shared implementations live in utils/json_parse.py
+_parse_json_array  = parse_json_array
+_parse_json_object = parse_json_object
 
 
 def _apply_template(template: str, variables: dict) -> str:

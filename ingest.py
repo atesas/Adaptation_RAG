@@ -153,7 +153,6 @@ async def ingest(
     source_key: str,
     client_facing: bool = False,
     force: bool = False,
-    inter_doc_delay: float = 0.0,   # kept for backward compat; concurrency flag is preferred
     concurrency: int = 5,
     store: Optional[KnowledgeStore] = None,
     openai_client: Optional[AsyncAzureOpenAI] = None,
@@ -397,20 +396,8 @@ async def reclassify_rejected(
 
 
 def _build_clients() -> tuple[KnowledgeStore, AsyncAzureOpenAI]:
-    config.require_credentials()
-    openai_client = AsyncAzureOpenAI(
-        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
-        api_key=config.AZURE_OPENAI_KEY,
-        api_version="2024-08-01-preview",
-        max_retries=6,
-    )
-    store = KnowledgeStore(
-        search_endpoint=config.AZURE_SEARCH_ENDPOINT,
-        search_key=config.AZURE_SEARCH_KEY,
-        openai_client=openai_client,
-    )
-    store.ensure_indexes()
-    return store, openai_client
+    from utils.clients import build_clients
+    return build_clients(ensure_indexes=True)
 
 
 # ── CLI entry point ───────────────────────────────────────────────────────────
@@ -529,18 +516,8 @@ TWO-STEP WORKFLOW (search first, classify later):
 
     if args.reset_indexes:
         config.require_credentials()
-        from openai import AsyncAzureOpenAI
-        from knowledge_store import KnowledgeStore
-        _oa = AsyncAzureOpenAI(
-            azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
-            api_key=config.AZURE_OPENAI_KEY,
-            api_version="2024-08-01-preview",
-        )
-        store = KnowledgeStore(
-            search_endpoint=config.AZURE_SEARCH_ENDPOINT,
-            search_key=config.AZURE_SEARCH_KEY,
-            openai_client=_oa,
-        )
+        from utils.clients import build_openai_client, build_store
+        store = build_store(build_openai_client())
         print("Deleting and recreating all Azure Search indexes...")
         store.reset_indexes()
         print("Done. All indexes recreated with current schema.")
@@ -567,7 +544,7 @@ TWO-STEP WORKFLOW (search first, classify later):
             result = asyncio.run(
                 ingest(str(target_dir), "corporate_pdf_direct",
                        client_facing=args.client_facing, force=args.force,
-                       inter_doc_delay=args.delay, concurrency=args.concurrency)
+                       concurrency=args.concurrency)
             )
             print(f"\nDone. {result}")
 
@@ -578,7 +555,6 @@ TWO-STEP WORKFLOW (search first, classify later):
                 source_key=args.source,
                 client_facing=args.client_facing,
                 force=args.force,
-                inter_doc_delay=args.delay,
                 concurrency=args.concurrency,
             )
         )
