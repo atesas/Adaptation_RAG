@@ -39,16 +39,8 @@ st.set_page_config(
 
 @st.cache_resource
 def get_store() -> KnowledgeStore:
-    openai_client = AsyncAzureOpenAI(
-        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
-        api_key=config.AZURE_OPENAI_KEY,
-        api_version="2024-08-01-preview",
-    )
-    return KnowledgeStore(
-        search_endpoint=config.AZURE_SEARCH_ENDPOINT,
-        search_key=config.AZURE_SEARCH_KEY,
-        openai_client=openai_client,
-    )
+    from utils.clients import build_openai_client, build_store
+    return build_store(build_openai_client())
 
 
 @st.cache_resource

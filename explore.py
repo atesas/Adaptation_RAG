@@ -102,18 +102,8 @@ async def answer_question(
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def _build_clients():
-    config.require_credentials()
-    openai_client = AsyncAzureOpenAI(
-        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
-        api_key=config.AZURE_OPENAI_KEY,
-        api_version="2024-08-01-preview",
-    )
-    store = KnowledgeStore(
-        search_endpoint=config.AZURE_SEARCH_ENDPOINT,
-        search_key=config.AZURE_SEARCH_KEY,
-        openai_client=openai_client,
-    )
-    return store, openai_client
+    from utils.clients import build_clients
+    return build_clients(ensure_indexes=False)
 
 
 def _parse_filters(raw: list[str]) -> dict:

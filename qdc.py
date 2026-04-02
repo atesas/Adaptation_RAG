@@ -122,25 +122,6 @@ _STOP = {
     "where","does","company","companies",
 }
 
-def _score_chunk(chunk: str, questions: list[dict]) -> float:
-    """
-    Score a chunk against all questions using keyword overlap.
-    Returns a score between 0 and 1. No API calls.
-    """
-    chunk_lower = chunk.lower()
-    chunk_words = set(re.findall(r'\b[a-z]{3,}\b', chunk_lower)) - _STOP
-    if not chunk_words:
-        return 0.0
-
-    total = 0.0
-    for q in questions:
-        q_words = set(re.findall(r'\b[a-z]{3,}\b', q["text"].lower())) - _STOP
-        if q_words:
-            overlap = len(q_words & chunk_words) / len(q_words)
-            total += overlap
-    return total / len(questions)
-
-
 def _select_top_chunks(
     chunks: list[tuple[int, str]],
     questions: list[dict],
@@ -274,13 +255,20 @@ async def _extract_from_chunk(
 
 # ── Stage 2: Classify extracted passages ─────────────────────────────────────
 
+_TAXONOMY_EXCERPT_CACHE: str | None = None
+
+
 def _build_full_taxonomy_excerpt() -> str:
-    """Return a YAML excerpt of all top-level taxonomy nodes."""
+    """Return a YAML excerpt of all top-level taxonomy nodes (cached after first call)."""
+    global _TAXONOMY_EXCERPT_CACHE
+    if _TAXONOMY_EXCERPT_CACHE is not None:
+        return _TAXONOMY_EXCERPT_CACHE
     import yaml as _yaml
     t = taxonomy._taxonomy   # access raw dict
     excerpt = {k: v for k, v in t.items()
                if isinstance(v, dict) and k not in ("taxonomy_version", "last_updated", "sector_focus")}
-    return _yaml.dump(excerpt, allow_unicode=True, sort_keys=False)
+    _TAXONOMY_EXCERPT_CACHE = _yaml.dump(excerpt, allow_unicode=True, sort_keys=False)
+    return _TAXONOMY_EXCERPT_CACHE
 
 
 async def _classify_batch(
@@ -712,20 +700,11 @@ def main():
 
     # Build clients
     config.require_credentials()
-    openai_client = AsyncAzureOpenAI(
-        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
-        api_key=config.AZURE_OPENAI_KEY,
-        api_version="2024-08-01-preview",
-        timeout=120.0,
-        max_retries=3,
-    )
+    from utils.clients import build_openai_client, build_store
+    openai_client = build_openai_client(max_retries=3, timeout=120.0)
     store = None
     if args.upsert:
-        store = KnowledgeStore(
-            search_endpoint=config.AZURE_SEARCH_ENDPOINT,
-            search_key=config.AZURE_SEARCH_KEY,
-            openai_client=openai_client,
-        )
+        store = build_store(openai_client)
 
     async def _main():
         try:
