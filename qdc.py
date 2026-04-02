@@ -113,6 +113,46 @@ def _chunk_text(text: str, chunk_size: int = 3000, overlap: int = 200) -> list[t
     return chunks
 
 
+# Stop words to ignore when scoring chunk relevance
+_STOP = {
+    "a","an","the","is","are","was","were","be","been","being","have","has","had",
+    "do","does","did","will","would","could","should","may","might","shall","can",
+    "to","of","in","for","on","with","at","by","from","as","and","or","but","not",
+    "it","its","this","that","these","those","what","which","who","how","when",
+    "where","does","company","companies",
+}
+
+def _select_top_chunks(
+    chunks: list[tuple[int, str]],
+    questions: list[dict],
+    top_k: int = 5,
+) -> list[tuple[int, str]]:
+    """
+    For each question, find the top_k most relevant chunks by keyword score.
+    Returns the union of all selected chunks (deduplicated by offset).
+    """
+    selected: dict[int, str] = {}   # offset → chunk text
+
+    for q in questions:
+        q_lower = q["text"].lower()
+        q_words = set(re.findall(r'\b[a-z]{3,}\b', q_lower)) - _STOP
+
+        scored = []
+        for offset, chunk in chunks:
+            chunk_words = set(re.findall(r'\b[a-z]{3,}\b', chunk.lower())) - _STOP
+            if q_words and chunk_words:
+                score = len(q_words & chunk_words) / len(q_words)
+                scored.append((score, offset, chunk))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        for score, offset, chunk in scored[:top_k]:
+            if score > 0:
+                selected[offset] = chunk
+
+    # Return in original document order
+    return [(off, selected[off]) for off in sorted(selected)]
+
+
 def _parse_json_list(raw: str) -> list:
     """
     Robustly extract a JSON array from a model response.
@@ -215,13 +255,20 @@ async def _extract_from_chunk(
 
 # ── Stage 2: Classify extracted passages ─────────────────────────────────────
 
+_TAXONOMY_EXCERPT_CACHE: str | None = None
+
+
 def _build_full_taxonomy_excerpt() -> str:
-    """Return a YAML excerpt of all top-level taxonomy nodes."""
+    """Return a YAML excerpt of all top-level taxonomy nodes (cached after first call)."""
+    global _TAXONOMY_EXCERPT_CACHE
+    if _TAXONOMY_EXCERPT_CACHE is not None:
+        return _TAXONOMY_EXCERPT_CACHE
     import yaml as _yaml
     t = taxonomy._taxonomy   # access raw dict
     excerpt = {k: v for k, v in t.items()
                if isinstance(v, dict) and k not in ("taxonomy_version", "last_updated", "sector_focus")}
-    return _yaml.dump(excerpt, allow_unicode=True, sort_keys=False)
+    _TAXONOMY_EXCERPT_CACHE = _yaml.dump(excerpt, allow_unicode=True, sort_keys=False)
+    return _TAXONOMY_EXCERPT_CACHE
 
 
 async def _classify_batch(
@@ -300,11 +347,20 @@ async def _process_one_document(
     sem: asyncio.Semaphore,
     delay: float = 0.0,
     chunk_size: int = 2000,
+    top_k: int = 5,
 ) -> list[QDCPassage]:
-    """Extract targeted passages from a single document."""
-    chunks = _chunk_text(doc_text, chunk_size=chunk_size)
-    n_chunks = len(chunks)
-    print(f"  → {n_chunks} chunks to scan", flush=True)
+    """
+    Extract targeted passages from a single document.
+    Uses keyword pre-filtering to select only the most relevant chunks
+    per question before making any LLM calls.
+    """
+    all_chunks = _chunk_text(doc_text, chunk_size=chunk_size)
+    selected   = _select_top_chunks(all_chunks, q_list, top_k=top_k)
+
+    print(
+        f"  → {len(all_chunks)} chunks total, {len(selected)} selected by keyword match",
+        flush=True,
+    )
 
     completed = 0
 
@@ -321,10 +377,10 @@ async def _process_one_document(
             delay=delay,
         )
         completed += 1
-        print(f"  chunk {completed}/{n_chunks}  found {len(result)} passage(s)", flush=True)
+        print(f"  chunk {completed}/{len(selected)}  found {len(result)} passage(s)", flush=True)
         return result
 
-    batches = await asyncio.gather(*[_tracked(offset, chunk) for offset, chunk in chunks])
+    batches = await asyncio.gather(*[_tracked(offset, chunk) for offset, chunk in selected])
     return [p for batch in batches for p in batch]
 
 
@@ -338,6 +394,7 @@ async def run_qdc(
     delay: float = 0.0,
     chunk_size: int = 2000,
     classify: bool = True,
+    top_k: int = 5,
 ) -> QDCResult:
     """
     Full QDC pipeline:
@@ -383,6 +440,7 @@ async def run_qdc(
             sem=sem,
             delay=delay,
             chunk_size=chunk_size,
+            top_k=top_k,
         )
 
     n_files = len(docs_by_file)
@@ -611,8 +669,10 @@ def main():
                         help="Seconds to wait between LLM calls (default: 3). "
                              "Increase if you hit 429 rate-limit errors.")
     parser.add_argument("--chunk-size",  default=2000, type=int, metavar="N",
-                        help="Characters per chunk (default: 2000). "
-                             "Smaller = fewer tokens per request = less rate-limit pressure.")
+                        help="Characters per chunk (default: 2000).")
+    parser.add_argument("--top-k",       default=5, type=int, metavar="N",
+                        help="Top-K chunks per question selected by keyword match (default: 5). "
+                             "Raise to 10 for broader coverage; lower for speed.")
     parser.add_argument("--taxonomy",    "-t", default=None, metavar="PATH",
                         help="Override taxonomy file (e.g. _design/taxonomy_tight.yaml). "
                              "Defaults to TAXONOMY_PATH env var or _design/taxonomy.yaml.")
@@ -640,20 +700,11 @@ def main():
 
     # Build clients
     config.require_credentials()
-    openai_client = AsyncAzureOpenAI(
-        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
-        api_key=config.AZURE_OPENAI_KEY,
-        api_version="2024-08-01-preview",
-        timeout=120.0,
-        max_retries=3,
-    )
+    from utils.clients import build_openai_client, build_store
+    openai_client = build_openai_client(max_retries=3, timeout=120.0)
     store = None
     if args.upsert:
-        store = KnowledgeStore(
-            search_endpoint=config.AZURE_SEARCH_ENDPOINT,
-            search_key=config.AZURE_SEARCH_KEY,
-            openai_client=openai_client,
-        )
+        store = build_store(openai_client)
 
     async def _main():
         try:
@@ -667,6 +718,7 @@ def main():
                 delay=args.delay,
                 chunk_size=args.chunk_size,
                 classify=not args.no_classify,
+                top_k=args.top_k,
             )
             _print_results(result)
             if args.output:
