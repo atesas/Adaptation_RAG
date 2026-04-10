@@ -341,6 +341,49 @@ Available filter keys:
 | `fetch_project_details: true` | Step 1 → filter → Step 3 (per-project detail) | Default. Most complete data. Detail requests only for filtered matches. |
 | `fetch_project_details: false` | Step 1 → filter → done | Faster. Use when you only need the fields already in the list payload. |
 
+#### Exporting to CSV for exploration
+
+Before ingesting into Azure AI Search, you can export the raw GCF data to CSV files for manual exploration. No Azure or OpenAI credentials needed.
+
+```bash
+# Dump everything — list metadata only (one fast request)
+python gcf_export.py --no-details
+
+# All projects with full per-project detail (300+ HTTP requests, rate-limited)
+python gcf_export.py
+
+# Filter first, then fetch detail only for matching projects
+python gcf_export.py \
+    --theme Adaptation Cross-cutting \
+    --status "Under Implementation" \
+    --result-areas "Livelihoods of people and communities" \
+                   "Health, food, and water security" \
+    --min-funding 1000000 \
+    --output exports/gcf_adaptation/
+
+# Just specific countries, fast
+python gcf_export.py --countries-iso3 PER MWI BGD ETH --no-details
+
+# Also save the raw JSON alongside the CSVs
+python gcf_export.py --save-json --output exports/gcf_full/
+```
+
+Output files (all in `--output` directory, default `tmp/gcf_export/`):
+
+| File | Contents | Join key |
+|------|----------|----------|
+| `gcf_projects.csv` | One row per project — all scalar fields + nested arrays summarised | — |
+| `gcf_result_areas.csv` | One row per project × result area (all areas incl. zero-allocation) | `ProjectsID` |
+| `gcf_countries.csv` | One row per project × country with financing breakdown | `ProjectsID` |
+| `gcf_entities.csv` | One row per project × implementing entity | `ProjectsID` |
+| `gcf_disbursements.csv` | One row per disbursement tranche | `ProjectsID` |
+| `gcf_funding.csv` | One row per funding instrument / source | `ProjectsID` |
+| `gcf_raw.json` | Full raw API response (with `--save-json`) | — |
+
+The filter flags (`--theme`, `--status`, `--result-areas`, `--countries-iso3`, `--size`, `--sector`, `--min-funding`) mirror the `filters:` keys in `sources.yaml` exactly, so the same filter you validate in the CSV export can be copied directly into your ingestion config.
+
+---
+
 #### What ends up in the Document
 
 Each project becomes one `Document` with `source_type: gcf_api` and `document_type: project_db`. The `raw_text` field contains structured prose that Stage A reads for passage extraction:
@@ -511,6 +554,7 @@ tests/
 _design/               # Read-only design specs — do not modify
   taxonomy.yaml        # 11-node climate adaptation taxonomy
   PROJECT_BRIEF.md     # Full specification
+gcf_export.py          # Export GCF project data to CSV for exploration (no credentials needed)
 config.py              # Single source for all env var reads
 taxonomy.py            # TaxonomyLoader singleton
 knowledge_store.py     # Azure AI Search client (only file importing the SDK)
