@@ -30,16 +30,31 @@ class GCFAPIAdapter(BaseAdapter):
     Fetches GCF approved project records from the public GCF Portfolio API.
     No authentication required.
 
-    Two-step fetch strategy:
+    Three-step strategy:
       Step 1 — GET /v1/projects
-          Returns the full list of approved projects with metadata including
-          Countries, Entities, Disbursements, Funding, and ResultAreas.
+          Fetches the complete list of approved projects. Each record already
+          contains Countries, Entities, Disbursements, Funding, and ResultAreas,
+          which is sufficient for filtering.
 
-      Step 2 — GET /v1/projects/{ProjectsID}  (when fetch_project_details=true)
-          Retrieves the authoritative per-project detail record. Used to ensure
-          completeness for projects where the list payload may be stale.
+      Step 2 — Filter (client-side, in memory)
+          Apply any filters configured under the ``filters`` key in sources.yaml
+          before making any per-project detail requests. Supported filters:
 
-    Each project yields one Document. raw_text is structured prose for Stage A.
+            theme           list of Theme values     e.g. ["Adaptation","Cross-cutting"]
+            status          list of Status values    e.g. ["Under Implementation"]
+            result_areas    list of ResultArea names  (matches if any non-zero area matches)
+            countries_iso3  list of ISO3 codes        (matches if any country matches)
+            size            list of Size values       e.g. ["Small","Medium","Large"]
+            sector          list of Sector values     e.g. ["Public","Private","Mixed"]
+            min_gcf_funding minimum TotalGCFFunding    e.g. 5000000  (USD)
+
+      Step 3 — GET /v1/projects/{ProjectsID}  (when fetch_project_details=true)
+          Fetches the authoritative per-project detail only for projects that
+          passed the filters. Skipping this for non-matching projects avoids
+          hundreds of unnecessary HTTP requests.
+
+    Each matching project yields one Document. raw_text is structured prose
+    for Stage A extraction.
     """
 
     source_type: str = "gcf_api"
@@ -51,15 +66,26 @@ class GCFAPIAdapter(BaseAdapter):
         self._fetch_details: bool = config.get("fetch_project_details", True)
         self._rate_limit_rpm: int = config.get("rate_limit_rpm", 20)
         self._sector_hint: list[str] = config.get("sector_hints", [])
+        self._filters: dict = config.get("filters", {})
 
     async def fetch(self, query_or_path: str) -> AsyncIterator[Document]:
         """
         Step 1: fetch full project list from /v1/projects.
-        Step 2: for each project, optionally fetch /v1/projects/{ProjectsID}.
-        Yields one Document per project.
+        Step 2: apply in-memory filters — only matching projects proceed.
+        Step 3: for each match, optionally fetch /v1/projects/{ProjectsID}.
+        Yields one Document per matching project.
         """
-        projects = await self._fetch_list()
-        for meta in projects:
+        all_projects = await self._fetch_list()
+
+        matched = [p for p in all_projects if self._matches_filters(p)]
+        skipped = len(all_projects) - len(matched)
+        if skipped:
+            logger.info(
+                "GCF filter: %d/%d projects matched, %d skipped",
+                len(matched), len(all_projects), skipped,
+            )
+
+        for meta in matched:
             project_id = meta.get("ProjectsID")
             if not project_id:
                 logger.warning("GCF project missing ProjectsID, skipping")
@@ -75,6 +101,69 @@ class GCFAPIAdapter(BaseAdapter):
             doc = self._project_to_document(project)
             if doc is not None:
                 yield doc
+
+    # ── Filter ────────────────────────────────────────────────────────────────
+
+    def _matches_filters(self, project: dict) -> bool:
+        """
+        Return True if the project passes all configured filters.
+        An empty filters dict matches everything.
+
+        Filters are AND-ed together. Within each filter the values are OR-ed
+        (e.g. theme: [Adaptation, Cross-cutting] matches either).
+        """
+        f = self._filters
+        if not f:
+            return True
+
+        # theme: ["Adaptation", "Cross-cutting"]
+        if "theme" in f:
+            if project.get("Theme") not in f["theme"]:
+                return False
+
+        # status: ["Under Implementation", "Completed"]
+        if "status" in f:
+            if project.get("Status") not in f["status"]:
+                return False
+
+        # size: ["Small", "Medium", "Large"]
+        if "size" in f:
+            if project.get("Size") not in f["size"]:
+                return False
+
+        # sector: ["Public", "Private", "Mixed"]
+        if "sector" in f:
+            if project.get("Sector") not in f["sector"]:
+                return False
+
+        # min_gcf_funding: 5000000
+        if "min_gcf_funding" in f:
+            if (project.get("TotalGCFFunding") or 0) < f["min_gcf_funding"]:
+                return False
+
+        # countries_iso3: ["PER", "MWI", "BGD"]
+        if "countries_iso3" in f:
+            project_isos = {
+                c.get("ISO3", "") for c in (project.get("Countries") or [])
+                if isinstance(c, dict)
+            }
+            if not project_isos.intersection(f["countries_iso3"]):
+                return False
+
+        # result_areas: ["Livelihoods of people and communities"]
+        # Matches if any non-zero result area name is in the filter list
+        if "result_areas" in f:
+            allowed = set(f["result_areas"])
+            non_zero_areas = {
+                ra.get("Area", "")
+                for ra in (project.get("ResultAreas") or [])
+                if ra.get("Value") not in ("0.00%", "0%", None, 0, "")
+                and ra.get("Value", "0.00%") != "0.00%"
+            }
+            if not non_zero_areas.intersection(allowed):
+                return False
+
+        return True
 
     # ── Network helpers ───────────────────────────────────────────────────────
 

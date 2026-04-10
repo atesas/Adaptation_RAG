@@ -171,7 +171,7 @@ sources:
     adapter: GCFAPIAdapter
     source_type: gcf_api
     document_type: project_db
-    enabled: false                # Phase 2
+    enabled: false                # Phase 2 — flip to true to activate
     schedule: fortnightly
     sector_hints:
       - food_agriculture
@@ -180,14 +180,51 @@ sources:
     rate_limit_rpm: 20
     note: >
       GCF Portfolio public API (api.gcfund.org). No authentication required.
-      Two-step fetch: GET /v1/projects for the full project list, then
-      GET /v1/projects/{ProjectsID} for authoritative per-project detail.
-      Returns structured project data (funding, countries, entities,
-      disbursements, result areas) for adaptation finance tracking.
-      Maps directly to taxonomy finance node and Report 3.
+      Three-step strategy: (1) GET /v1/projects fetches the full approved project
+      list, (2) filters are applied in memory so detail requests are only made
+      for matching projects, (3) GET /v1/projects/{ProjectsID} fetches the
+      authoritative per-project record for each match.
+      Returns structured data (funding, countries, entities, disbursements,
+      result areas) for adaptation finance tracking (Report 3).
     api_base_url: "https://api.gcfund.org/v1/projects"
     api_detail_url: "https://api.gcfund.org/v1/projects/{project_id}"
-    fetch_project_details: true
+    fetch_project_details: true   # set false to use list metadata only (faster)
+    # ── Client-side filters ──────────────────────────────────────────────────
+    # All filters are optional. Remove any key to disable that filter.
+    # Within each filter, values are OR-ed. Across filters, conditions are AND-ed.
+    filters:
+      # theme: match Theme field exactly
+      # Valid values (from API): Adaptation, Mitigation, Cross-cutting
+      theme:
+        - Adaptation
+        - Cross-cutting
+      # status: match Status field exactly
+      # Common values: Under Implementation, Completed, Under Development
+      status:
+        - Under Implementation
+        - Completed
+      # result_areas: match any non-zero ResultArea.Area name
+      # Matches projects where the area has a non-zero allocation percentage
+      result_areas:
+        - Livelihoods of people and communities
+        - Health, food, and water security
+        - Ecosystems and ecosystem services
+      # countries_iso3: match any country ISO3 code in the project's Countries list
+      # Remove this key entirely to include all countries
+      # countries_iso3:
+      #   - PER
+      #   - MWI
+      #   - BGD
+      # size: Small, Micro, Medium, Large
+      # size:
+      #   - Small
+      #   - Medium
+      #   - Large
+      # sector: Public, Private, Mixed
+      # sector:
+      #   - Public
+      # min_gcf_funding: minimum TotalGCFFunding in USD (e.g. 5000000 = $5M)
+      # min_gcf_funding: 5000000
 
   # ── OECD CRS Finance Flows ────────────────────────────────────────────────
   # Why direct API (not CSE): structured climate finance flows by instrument

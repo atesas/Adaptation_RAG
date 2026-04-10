@@ -78,7 +78,7 @@ The test suite mocks all Azure and OpenAI calls. Run this first to confirm the c
 python -m pytest tests/ -v
 ```
 
-You should see **154 tests pass** (0 failures). If any tests fail, check the error — it's almost always a missing package.
+You should see all tests pass (0 failures). If any tests fail, check the error — it's almost always a missing package.
 
 ### Test your CLI works
 
@@ -238,6 +238,128 @@ Available source keys (from `sources.yaml`):
 | `google_cse_corporate` | Search for corporate sustainability/CSRD/TCFD reports |
 | `google_cse_policy` | Search for policy docs, NAPs, FAO/IPCC/EU guidance |
 | `google_cse_targeted` | Search specific high-quality domains (EEA, UNFCCC, FAO) |
+| `gcf_projects` | GCF Portfolio API — all approved projects with funding detail (Phase 2) |
+| `oecd_crs` | OECD CRS climate finance flows — agriculture and water sectors (Phase 2) |
+
+---
+
+### `gcf_projects` — GCF Approved Projects (Phase 2)
+
+The GCF adapter fetches all approved projects from the [GCF Portfolio API](https://api.gcfund.org/v1/projects) and converts each one into a `Document`. No API key required.
+
+#### How it works (three steps)
+
+```
+Step 1 — GET /v1/projects
+         Fetches the complete approved project list in one request.
+         Each record already includes Countries, Entities, Disbursements,
+         Funding, and ResultAreas.
+         ~300+ projects returned as JSON.
+
+Step 2 — Filter (in memory)
+         Your filters from sources.yaml are applied here.
+         Only matching projects proceed to Step 3.
+         Unmatched projects are skipped entirely — no detail requests made for them.
+
+Step 3 — GET /v1/projects/{ProjectsID}   (fetch_project_details: true)
+         Fetches the authoritative per-project record for each match.
+         Rate-limited to 20 requests/minute by default.
+         Set fetch_project_details: false to skip this and use the list data only.
+```
+
+#### Enabling the adapter
+
+In `sources.yaml`, set `enabled: true` for `gcf_projects`:
+
+```yaml
+gcf_projects:
+  enabled: true
+```
+
+Then run:
+
+```bash
+python ingest.py --source gcf_projects
+```
+
+#### Filtering projects before fetching details
+
+Configure filters in `sources.yaml` under `gcf_projects.filters`. All filters are optional and AND-ed together. Values within a filter are OR-ed.
+
+```yaml
+gcf_projects:
+  fetch_project_details: true
+  filters:
+    # Only adaptation and cross-cutting projects
+    theme:
+      - Adaptation
+      - Cross-cutting
+
+    # Only active projects
+    status:
+      - Under Implementation
+
+    # Only projects with non-zero allocation to these result areas
+    result_areas:
+      - Livelihoods of people and communities
+      - Health, food, and water security
+      - Ecosystems and ecosystem services
+
+    # Only specific countries (ISO3 codes)
+    countries_iso3:
+      - PER
+      - MWI
+      - BGD
+      - ETH
+
+    # Only Small/Medium/Large (exclude Micro)
+    size:
+      - Small
+      - Medium
+      - Large
+
+    # Only projects with at least $5M GCF funding
+    min_gcf_funding: 5000000
+```
+
+Available filter keys:
+
+| Filter key | Matches against | Values |
+|------------|----------------|--------|
+| `theme` | `Theme` field | `Adaptation`, `Mitigation`, `Cross-cutting` |
+| `status` | `Status` field | `Under Implementation`, `Completed`, `Under Development` |
+| `result_areas` | `ResultAreas[].Area` (non-zero only) | See GCF result area taxonomy |
+| `countries_iso3` | `Countries[].ISO3` | Any ISO 3166-1 alpha-3 code |
+| `size` | `Size` field | `Micro`, `Small`, `Medium`, `Large` |
+| `sector` | `Sector` field | `Public`, `Private`, `Mixed` |
+| `min_gcf_funding` | `TotalGCFFunding` (USD) | Any integer |
+
+#### Fetch modes
+
+| Config | Behaviour | When to use |
+|--------|-----------|-------------|
+| `fetch_project_details: true` | Step 1 → filter → Step 3 (per-project detail) | Default. Most complete data. Detail requests only for filtered matches. |
+| `fetch_project_details: false` | Step 1 → filter → done | Faster. Use when you only need the fields already in the list payload. |
+
+#### What ends up in the Document
+
+Each project becomes one `Document` with `source_type: gcf_api` and `document_type: project_db`. The `raw_text` field contains structured prose that Stage A reads for passage extraction:
+
+```
+GCF Approved Project: Building the Resilience of Wetlands in the Province of Datem del Marañón, Peru
+Reference: FP001 | Board Meeting: B.11
+Status: Under Implementation
+Theme: Cross-cutting | Sector: Public
+Size: Micro | Risk Category: Category C
+Approval Date: 2015-11-05 | Implementation Start: 2016-12-15 | ...
+Total GCF Funding: USD 6,240,000 | Co-Financing: USD 2,870,000 | Total: USD 9,110,000
+Direct Beneficiaries: 20,413 | Indirect Beneficiaries: 0 | Lifetime CO2 (tCO2eq): 2,630,000
+Countries: Peru (PER) – Latin America and the Caribbean | GCF: USD 6,240,000
+Implementing Entities: Peruvian Trust Fund for National Parks and Protected Areas (Profonanpe) – Access: Direct / Type: National
+Result Areas: Forest and land use (Mitigation): 80.00%; Livelihoods of people and communities (Adaptation): 20.00%
+Funding Instruments: GCF – Grants: USD 6,240,000; Co-Financing – Grants: USD 2,870,000
+Disbursements: 5 tranches, total USD 6,240,000 disbursed (latest: 2022-12-15)
+```
 
 ---
 
@@ -359,7 +481,7 @@ adapters/
   base.py              # BaseAdapter ABC + AdapterAuthError, AdapterFetchError, AdapterParseError
   corporate_pdf.py     # Local PDF → Document objects (PyPDF2)
   google_cse.py        # Search → download → extract → Document objects
-  gcf_api.py           # GCF Project Browser API (Phase 2)
+  gcf_api.py           # GCF Portfolio API: list → filter → per-project detail (Phase 2)
   oecd_api.py          # OECD CRS finance flows API (Phase 2)
 schemas/
   document.py          # Document dataclass, SOURCE_TYPES, DOCUMENT_TYPES
@@ -381,7 +503,7 @@ prompts/
 tests/
   conftest.py          # Stub env vars for test collection
   test_schemas.py      # 40 tests — schemas and controlled vocabularies
-  test_adapters.py     # 16 tests — CorporatePDFAdapter + GoogleCSEAdapter
+  test_adapters.py     # 38 tests — CorporatePDFAdapter, GoogleCSEAdapter, GCFAPIAdapter
   test_taxonomy.py     # 24 tests — TaxonomyLoader
   test_extractor.py    # 20 tests — Stage A/B, triage, build_classified_passage
   test_knowledge_store.py # 23 tests — KnowledgeStore (mocked Azure)
@@ -515,7 +637,7 @@ You can also trigger ingestion manually from the GitHub Actions tab with a custo
 | Phase 2 | Complete | GCF API, OECD API adapters, Streamlit review UI, GitHub Actions |
 | Phase 3 | Complete | Newsletter, sector brief, company assessment (D1–D8), citations |
 
-Phase 2 API adapters (GCF, OECD) are fully implemented but disabled by default. Enable them in `sources.yaml` by setting `enabled: true`.
+Phase 2 API adapters (GCF, OECD) are fully implemented but disabled by default. Enable them in `sources.yaml` by setting `enabled: true`. See the **GCF Approved Projects** section above for full filtering and fetch-mode documentation.
 
 ---
 

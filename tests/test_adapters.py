@@ -899,6 +899,117 @@ class TestGCFAPIAdapter:
         assert doc is not None
         assert doc.company_name == "Peruvian Trust Fund for National Parks and Protected Areas"
 
+    # ── _matches_filters tests ────────────────────────────────────────────────
+
+    def test_no_filters_matches_everything(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True
+
+    def test_theme_filter_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"theme": ["Cross-cutting", "Adaptation"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True  # Theme=Cross-cutting
+
+    def test_theme_filter_no_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"theme": ["Mitigation"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False  # Theme=Cross-cutting
+
+    def test_status_filter_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"status": ["Under Implementation"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True
+
+    def test_status_filter_no_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"status": ["Completed"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False
+
+    def test_countries_iso3_filter_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"countries_iso3": ["PER", "MWI"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True  # ISO3=PER
+
+    def test_countries_iso3_filter_no_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"countries_iso3": ["MWI", "BGD"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False  # only PER
+
+    def test_result_areas_filter_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({
+            "filters": {"result_areas": ["Livelihoods of people and communities"]}
+        })
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True  # 20%
+
+    def test_result_areas_filter_excludes_zero_allocation(self) -> None:
+        """A result area present but at 0.00% must NOT trigger a filter match."""
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({
+            "filters": {"result_areas": ["Energy generation and access"]}
+        })
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False  # 0.00%
+
+    def test_min_gcf_funding_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"min_gcf_funding": 5000000}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True  # 6,240,000
+
+    def test_min_gcf_funding_no_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"min_gcf_funding": 10000000}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False  # only 6,240,000
+
+    def test_combined_filters_all_pass(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {
+            "theme": ["Cross-cutting", "Adaptation"],
+            "status": ["Under Implementation"],
+            "countries_iso3": ["PER"],
+            "min_gcf_funding": 1000000,
+        }})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True
+
+    def test_combined_filters_one_fails(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {
+            "theme": ["Cross-cutting"],
+            "status": ["Completed"],       # fails — project is Under Implementation
+        }})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False
+
+    def test_filter_skips_unmatched_before_detail_fetch(self) -> None:
+        """
+        With a filter that matches nothing, _fetch_detail must never be called.
+        This proves filtering happens before the detail step.
+        """
+        import asyncio
+        from adapters.gcf_api import GCFAPIAdapter
+
+        adapter = self._make_adapter({
+            "fetch_project_details": True,
+            "filters": {"theme": ["Mitigation"]},  # sample is Cross-cutting → no match
+        })
+        detail_calls: list[int] = []
+
+        async def mock_fetch_list(self_inner: GCFAPIAdapter) -> list[dict]:
+            return [self._SAMPLE_PROJECT]
+
+        async def mock_fetch_detail(self_inner: GCFAPIAdapter, project_id: int) -> dict | None:
+            detail_calls.append(project_id)
+            return None
+
+        with patch.object(GCFAPIAdapter, "_fetch_list", mock_fetch_list), \
+             patch.object(GCFAPIAdapter, "_fetch_detail", mock_fetch_detail), \
+             patch.object(GCFAPIAdapter, "rate_limit_wait", new=AsyncMock()):
+            docs = asyncio.get_event_loop().run_until_complete(
+                _collect(adapter.fetch(""))
+            )
+
+        assert docs == [], "no documents expected when filter matches nothing"
+        assert detail_calls == [], "detail must not be fetched for filtered-out projects"
+
 
 # ── Async helper ──────────────────────────────────────────────────────────────
 
