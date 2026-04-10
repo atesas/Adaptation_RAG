@@ -614,3 +614,404 @@ class TestGoogleCSEAdapter:
             with patch("adapters.google_cse.requests.get", side_effect=fake_get):
                 with pytest.raises(AdapterFetchError, match="exhausted"):
                     list(adapter._search("climate food"))
+
+
+# ── GCFAPIAdapter tests ───────────────────────────────────────────────────────
+
+class TestGCFAPIAdapter:
+    """Tests for adapters/gcf_api.py — two-step list+detail fetch."""
+
+    # One realistic project record matching the /v1/projects API shape
+    _SAMPLE_PROJECT: dict = {
+        "ProjectsID": 13020,
+        "ApprovedRef": "FP001",
+        "BoardMeeting": "B.11",
+        "ProjectName": "Building the Resilience of Wetlands in the Province of Datem del Marañón, Peru",
+        "StartDate": "2017-03-10T00:00:00.000Z",
+        "EndDate": "2022-03-10T00:00:00.000Z",
+        "ApprovalDate": "2015-11-05T00:00:00.000Z",
+        "DateImplementationStart": "2016-12-15T00:00:00.000Z",
+        "DateClosing": "2022-12-31T00:00:00.000Z",
+        "DurationMonths": 60,
+        "Theme": "Cross-cutting",
+        "Sector": "Public",
+        "LifeTimeCO2": 2630000,
+        "Size": "Micro",
+        "RiskCategory": "Category C",
+        "DirectBeneficiaries": 20413,
+        "IndirectBeneficiaries": 0,
+        "TotalGCFFunding": 6240000,
+        "TotalCoFinancing": 2870000,
+        "TotalValue": 9110000,
+        "ProjectURL": "https://www.greenclimate.fund/project/FP001",
+        "Status": "Under Implementation",
+        "DateCancelled": None,
+        "Countries": [{
+            "CountryID": 173,
+            "CountryName": "Peru",
+            "ISO3": "PER",
+            "Region": "Latin America and the Caribbean",
+            "LDCs": False,
+            "SIDS": False,
+            "Financing": [{"Currency": "USD", "GCF": 6240000, "CoFinancing": 2870000, "Total": 9110000}],
+        }],
+        "Entities": [{
+            "EntityID": 27,
+            "Name": "Peruvian Trust Fund for National Parks and Protected Areas",
+            "Acronym": "Profonanpe",
+            "Access": "Direct",
+            "Type": "National",
+            "Sector": "Public",
+        }],
+        "ResultAreas": [
+            {"Area": "Forest and land use", "Type": "Mitigation", "Value": "80.00%"},
+            {"Area": "Livelihoods of people and communities", "Type": "Adaptation", "Value": "20.00%"},
+            {"Area": "Energy generation and access", "Type": "Mitigation", "Value": "0.00%"},
+        ],
+        "Funding": [
+            {"Source": "GCF", "Instrument": "Grants", "Budget": 6240000, "Currency": "USD"},
+            {"Source": "Co-Financing", "Instrument": "Grants", "Budget": 2870000, "Currency": "USD"},
+        ],
+        "Disbursements": [
+            {"ProjectDisbursementID": 10, "AmountDisbursed": 1022186, "AmountDisbursedUSDeq": 1022186,
+             "Currency": "USD", "DateEffective": "2017-05-31", "Entity": "Profonanpe"},
+            {"ProjectDisbursementID": 122, "AmountDisbursed": 1300000, "AmountDisbursedUSDeq": 1300000,
+             "Currency": "USD", "DateEffective": "2019-10-25", "Entity": "Profonanpe"},
+        ],
+    }
+
+    def _make_adapter(self, config_override: dict | None = None) -> "GCFAPIAdapter":
+        from adapters.gcf_api import GCFAPIAdapter
+        config = {
+            "sector_hints": ["water", "ecosystems"],
+            "rate_limit_rpm": 20,
+            "fetch_project_details": False,  # default off for unit tests
+        }
+        if config_override:
+            config.update(config_override)
+        return GCFAPIAdapter(config)
+
+    def test_source_type_is_gcf_api(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        from schemas.document import SOURCE_TYPES
+        adapter = self._make_adapter()
+        assert adapter.source_type == "gcf_api"
+        assert adapter.source_type in SOURCE_TYPES
+
+    def test_fetch_without_detail_calls_list_only(self) -> None:
+        """With fetch_project_details=False, only the list endpoint is called."""
+        import asyncio
+        from adapters.gcf_api import GCFAPIAdapter
+
+        adapter = self._make_adapter({"fetch_project_details": False})
+        list_calls: list[str] = []
+        detail_calls: list[str] = []
+
+        async def mock_fetch_list(self_inner: GCFAPIAdapter) -> list[dict]:
+            list_calls.append("list")
+            return [self._SAMPLE_PROJECT]
+
+        async def mock_fetch_detail(self_inner: GCFAPIAdapter, project_id: int) -> dict | None:
+            detail_calls.append(str(project_id))
+            return None
+
+        with patch.object(GCFAPIAdapter, "_fetch_list", mock_fetch_list), \
+             patch.object(GCFAPIAdapter, "_fetch_detail", mock_fetch_detail):
+            docs = asyncio.get_event_loop().run_until_complete(
+                _collect(adapter.fetch(""))
+            )
+
+        assert list_calls == ["list"]
+        assert detail_calls == [], "detail must NOT be called when fetch_project_details=False"
+        assert len(docs) == 1
+
+    def test_fetch_with_detail_calls_list_then_detail(self) -> None:
+        """With fetch_project_details=True, list is called first, then detail per project."""
+        import asyncio
+        from adapters.gcf_api import GCFAPIAdapter
+
+        adapter = self._make_adapter({"fetch_project_details": True})
+        call_order: list[str] = []
+
+        async def mock_fetch_list(self_inner: GCFAPIAdapter) -> list[dict]:
+            call_order.append("list")
+            return [self._SAMPLE_PROJECT]
+
+        async def mock_fetch_detail(self_inner: GCFAPIAdapter, project_id: int) -> dict | None:
+            call_order.append(f"detail:{project_id}")
+            return self._SAMPLE_PROJECT
+
+        with patch.object(GCFAPIAdapter, "_fetch_list", mock_fetch_list), \
+             patch.object(GCFAPIAdapter, "_fetch_detail", mock_fetch_detail), \
+             patch.object(GCFAPIAdapter, "rate_limit_wait", new=AsyncMock()):
+            docs = asyncio.get_event_loop().run_until_complete(
+                _collect(adapter.fetch(""))
+            )
+
+        assert call_order[0] == "list", "list must be called before any detail"
+        assert call_order[1] == "detail:13020"
+        assert len(docs) == 1
+
+    def test_document_has_required_fields(self) -> None:
+        """_project_to_document must populate all required Document fields."""
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        doc = adapter._project_to_document(self._SAMPLE_PROJECT)
+
+        assert doc is not None
+        assert doc.source_type == "gcf_api"
+        assert doc.adapter == "GCFAPIAdapter"
+        assert doc.document_type == "project_db"
+        assert doc.extraction_status == "pending"
+        assert doc.extraction_error is None
+        assert isinstance(doc.ingestion_date, datetime)
+        assert isinstance(doc.country, list)
+        assert isinstance(doc.sector_hint, list)
+        assert doc.content_hash != ""
+        assert doc.doc_id != ""
+
+    def test_approved_ref_and_title_in_document(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        doc = adapter._project_to_document(self._SAMPLE_PROJECT)
+        assert doc is not None
+        assert "FP001" in doc.title or "Wetlands" in doc.title
+        assert doc.source_url == "https://www.greenclimate.fund/project/FP001"
+
+    def test_countries_extracted_as_iso3(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        doc = adapter._project_to_document(self._SAMPLE_PROJECT)
+        assert doc is not None
+        assert "PER" in doc.country
+
+    def test_raw_text_contains_key_fields(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        doc = adapter._project_to_document(self._SAMPLE_PROJECT)
+        assert doc is not None
+        text = doc.raw_text
+
+        assert "FP001" in text
+        assert "B.11" in text
+        assert "Peru" in text
+        assert "Cross-cutting" in text
+        assert "6,240,000" in text           # TotalGCFFunding formatted
+        assert "Profonanpe" in text           # entity name
+        assert "Forest and land use" in text  # non-zero result area
+        assert "Livelihoods of people" in text
+        # Zero-value result areas must be omitted
+        assert "Energy generation and access" not in text
+
+    def test_zero_result_areas_excluded_from_text(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        doc = adapter._project_to_document(self._SAMPLE_PROJECT)
+        assert doc is not None
+        # "Energy generation and access" has Value "0.00%" — must not appear in text
+        assert "Energy generation and access" not in doc.raw_text
+
+    def test_missing_project_id_returns_none(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        doc = adapter._project_to_document({"ProjectName": "No ID project"})
+        assert doc is None
+
+    def test_content_hash_is_deterministic(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        doc1 = adapter._project_to_document(self._SAMPLE_PROJECT)
+        doc2 = adapter._project_to_document(self._SAMPLE_PROJECT)
+        assert doc1 is not None and doc2 is not None
+        assert doc1.content_hash == doc2.content_hash
+
+    def test_detail_fallback_to_meta_when_detail_fails(self) -> None:
+        """If _fetch_detail returns None, the list metadata is used instead."""
+        import asyncio
+        from adapters.gcf_api import GCFAPIAdapter
+
+        adapter = self._make_adapter({"fetch_project_details": True})
+
+        async def mock_fetch_list(self_inner: GCFAPIAdapter) -> list[dict]:
+            return [self._SAMPLE_PROJECT]
+
+        async def mock_fetch_detail(self_inner: GCFAPIAdapter, project_id: int) -> dict | None:
+            return None  # simulate detail endpoint failure
+
+        with patch.object(GCFAPIAdapter, "_fetch_list", mock_fetch_list), \
+             patch.object(GCFAPIAdapter, "_fetch_detail", mock_fetch_detail), \
+             patch.object(GCFAPIAdapter, "rate_limit_wait", new=AsyncMock()):
+            docs = asyncio.get_event_loop().run_until_complete(
+                _collect(adapter.fetch(""))
+            )
+
+        # Should still yield the document using list metadata
+        assert len(docs) == 1
+        assert "FP001" in docs[0].raw_text
+
+    def test_list_fetch_retries_on_failure(self) -> None:
+        """_fetch_list retries up to _MAX_RETRIES times before raising."""
+        import asyncio
+        from adapters.gcf_api import GCFAPIAdapter
+
+        adapter = self._make_adapter()
+        attempt_count = 0
+
+        def bad_get(url: str, timeout: int) -> MagicMock:
+            nonlocal attempt_count
+            attempt_count += 1
+            raise requests.exceptions.ConnectionError("network error")
+
+        with patch("adapters.gcf_api.requests.get", side_effect=bad_get), \
+             patch("adapters.gcf_api.asyncio.sleep", new=AsyncMock()):
+            with pytest.raises(AdapterFetchError, match="failed after"):
+                asyncio.get_event_loop().run_until_complete(adapter._fetch_list())
+
+        assert attempt_count == 4  # initial + 3 retries
+
+    def test_parse_date_handles_iso8601_with_z(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        dt = adapter._parse_date("2015-11-05T00:00:00.000Z")
+        assert dt is not None
+        assert dt.year == 2015
+        assert dt.month == 11
+        assert dt.day == 5
+
+    def test_parse_date_returns_none_for_empty(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        assert adapter._parse_date(None) is None
+        assert adapter._parse_date("") is None
+
+    def test_disbursements_total_in_text(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        doc = adapter._project_to_document(self._SAMPLE_PROJECT)
+        assert doc is not None
+        # 1022186 + 1300000 = 2322186
+        assert "2,322,186" in doc.raw_text
+
+    def test_primary_entity_name(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter()
+        doc = adapter._project_to_document(self._SAMPLE_PROJECT)
+        assert doc is not None
+        assert doc.company_name == "Peruvian Trust Fund for National Parks and Protected Areas"
+
+    # ── _matches_filters tests ────────────────────────────────────────────────
+
+    def test_no_filters_matches_everything(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True
+
+    def test_theme_filter_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"theme": ["Cross-cutting", "Adaptation"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True  # Theme=Cross-cutting
+
+    def test_theme_filter_no_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"theme": ["Mitigation"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False  # Theme=Cross-cutting
+
+    def test_status_filter_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"status": ["Under Implementation"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True
+
+    def test_status_filter_no_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"status": ["Completed"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False
+
+    def test_countries_iso3_filter_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"countries_iso3": ["PER", "MWI"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True  # ISO3=PER
+
+    def test_countries_iso3_filter_no_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"countries_iso3": ["MWI", "BGD"]}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False  # only PER
+
+    def test_result_areas_filter_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({
+            "filters": {"result_areas": ["Livelihoods of people and communities"]}
+        })
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True  # 20%
+
+    def test_result_areas_filter_excludes_zero_allocation(self) -> None:
+        """A result area present but at 0.00% must NOT trigger a filter match."""
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({
+            "filters": {"result_areas": ["Energy generation and access"]}
+        })
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False  # 0.00%
+
+    def test_min_gcf_funding_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"min_gcf_funding": 5000000}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True  # 6,240,000
+
+    def test_min_gcf_funding_no_match(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {"min_gcf_funding": 10000000}})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False  # only 6,240,000
+
+    def test_combined_filters_all_pass(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {
+            "theme": ["Cross-cutting", "Adaptation"],
+            "status": ["Under Implementation"],
+            "countries_iso3": ["PER"],
+            "min_gcf_funding": 1000000,
+        }})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is True
+
+    def test_combined_filters_one_fails(self) -> None:
+        from adapters.gcf_api import GCFAPIAdapter
+        adapter = self._make_adapter({"filters": {
+            "theme": ["Cross-cutting"],
+            "status": ["Completed"],       # fails — project is Under Implementation
+        }})
+        assert adapter._matches_filters(self._SAMPLE_PROJECT) is False
+
+    def test_filter_skips_unmatched_before_detail_fetch(self) -> None:
+        """
+        With a filter that matches nothing, _fetch_detail must never be called.
+        This proves filtering happens before the detail step.
+        """
+        import asyncio
+        from adapters.gcf_api import GCFAPIAdapter
+
+        adapter = self._make_adapter({
+            "fetch_project_details": True,
+            "filters": {"theme": ["Mitigation"]},  # sample is Cross-cutting → no match
+        })
+        detail_calls: list[int] = []
+
+        async def mock_fetch_list(self_inner: GCFAPIAdapter) -> list[dict]:
+            return [self._SAMPLE_PROJECT]
+
+        async def mock_fetch_detail(self_inner: GCFAPIAdapter, project_id: int) -> dict | None:
+            detail_calls.append(project_id)
+            return None
+
+        with patch.object(GCFAPIAdapter, "_fetch_list", mock_fetch_list), \
+             patch.object(GCFAPIAdapter, "_fetch_detail", mock_fetch_detail), \
+             patch.object(GCFAPIAdapter, "rate_limit_wait", new=AsyncMock()):
+            docs = asyncio.get_event_loop().run_until_complete(
+                _collect(adapter.fetch(""))
+            )
+
+        assert docs == [], "no documents expected when filter matches nothing"
+        assert detail_calls == [], "detail must not be fetched for filtered-out projects"
+
+
+# ── Async helper ──────────────────────────────────────────────────────────────
+
+async def _collect(ait: AsyncIterator) -> list:
+    return [item async for item in ait]
