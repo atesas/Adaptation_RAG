@@ -179,18 +179,15 @@ sources:
       - ecosystems
     rate_limit_rpm: 20
     note: >
-      GCF Project Browser public API. No authentication required.
-      Returns structured project data for adaptation finance tracking.
+      GCF Portfolio public API (api.gcfund.org). No authentication required.
+      Two-step fetch: GET /v1/projects for the full project list, then
+      GET /v1/projects/{ProjectsID} for authoritative per-project detail.
+      Returns structured project data (funding, countries, entities,
+      disbursements, result areas) for adaptation finance tracking.
       Maps directly to taxonomy finance node and Report 3.
-    api_base_url: "https://www.greenclimate.fund/projects/api"
-    filters:
-      result_areas:
-        - food_and_water_security
-        - livelihoods_and_wellbeing
-        - resilient_infrastructure
-      status:
-        - active
-        - completed
+    api_base_url: "https://api.gcfund.org/v1/projects"
+    api_detail_url: "https://api.gcfund.org/v1/projects/{project_id}"
+    fetch_project_details: true
 
   # ── OECD CRS Finance Flows ────────────────────────────────────────────────
   # Why direct API (not CSE): structured climate finance flows by instrument
