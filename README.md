@@ -6,9 +6,206 @@ A climate knowledge intelligence platform that finds, downloads, extracts, class
 
 | Pillar | What happens |
 |--------|-------------|
-| **Ingestion** | PDFs and web pages are downloaded, text is extracted, and documents are saved to Azure AI Search |
-| **Classification** | Two-stage LLM pipeline: Stage A pulls out every climate passage; Stage B classifies each into a seeded taxonomy |
-| **Output Generation** | Sector newsletters, D1–D8 sector briefs, and D1–D8 company assessments — all with source citations |
+| **Index** | PDFs are indexed as chunks with embeddings for Q&A |
+| **Query** | Free-form RAG Q&A over document chunks |
+| **Classify** | Two-stage LLM pipeline: Stage A pulls out every climate passage; Stage B classifies each into a seeded taxonomy |
+| **Suggest** | Analyzes Q&A results and suggests taxonomy improvements |
+
+---
+
+## Quick Start
+
+### Starting from zero (nothing indexed):
+
+```bash
+# Step 1: Index all PDFs (one-time setup)
+python query.py --index
+
+# Step 2: Check status
+python query.py --status
+
+# Step 3: Choose your workflow:
+# Option A - Free-form Q&A
+python query.py --run
+
+# Option B - Taxonomy classification
+python classify.py --run
+
+# Option C - Q&A + taxonomy suggestions
+python query.py --run --suggest
+```
+
+---
+
+## Three Main Workflows
+
+### 1. Query (Free-form Q&A)
+
+Use `query.py` for free-form questions against document chunks.
+
+```bash
+# Index all PDFs (one-time)
+python query.py --index
+
+# Run Q&A on all documents
+python query.py --run
+
+# Run Q&A on specific document
+python query.py --run --document "Danone_annual_report_2024.pdf"
+
+# Run Q&A + generate taxonomy suggestions
+python query.py --run --suggest
+
+# Ask single question across all docs
+python query.py --ask "What climate hazards have been identified?"
+
+# Ask question filtered to specific document
+python query.py --ask "What climate hazards?" --document "Danone_annual_report_2024.pdf"
+
+# Check indexed documents status
+python query.py --status
+```
+
+**Output files:**
+- `results/qa_results.json` - Full Q&A results
+- `results/qa_results.csv` - Results in CSV format
+- `results/taxonomy_suggestions.json` - Taxonomy suggestions (with `--suggest`)
+- `results/document_index.json` - Document metadata
+
+### 2. Classify (Taxonomy Classification)
+
+Use `classify.py` to classify passages into the taxonomy (ESRS E1, TCFD, IPCC AR6).
+
+```bash
+# Classify all documents
+python classify.py --run
+
+# Classify specific document
+python classify.py --run --document "Danone_annual_report_2024.pdf"
+
+# Check classified documents status
+python classify.py --status
+```
+
+**Note:** Classify runs independently - does NOT require pre-indexing from query.py. Creates its own chunks during classification.
+
+### 3. Suggest (Taxonomy Improvements)
+
+Use `suggest_taxonomy.py` to analyze Q&A results and suggest taxonomy improvements.
+
+```bash
+# Generate suggestions from Q&A results
+python suggest_taxonomy.py \
+  --input results/qa_results.json \
+  --output results/taxonomy_suggestions.json \
+  --taxonomy _design/taxonomy.yaml
+```
+
+**Output includes:**
+- New subcategories (concepts not in current taxonomy)
+- New framework mappings (TCFD, ESRS, TNFD)
+- Taxonomy gaps (identified areas for expansion)
+
+---
+
+## Command Reference
+
+### query.py
+
+| Command | Description |
+|---------|-------------|
+| `--index` | Index all PDFs in documents/ (one-time setup) |
+| `--run` | Run Q&A on indexed documents |
+| `--run --document X` | Run Q&A on specific document |
+| `--run --suggest` | Run Q&A + generate taxonomy suggestions |
+| `--ask "Q?"` | Ask single question across all docs |
+| `--ask "Q?" --document X` | Ask question filtered to specific doc |
+| `--status` | Show indexed documents status |
+| `--no-ocr` | Skip OCR for scanned PDFs |
+
+### classify.py
+
+| Command | Description |
+|---------|-------------|
+| `--run` | Classify all documents |
+| `--run --document X` | Classify specific document |
+| `--status` | Show classified documents status |
+
+### suggest_taxonomy.py
+
+| Command | Description |
+|---------|-------------|
+| `--input X` | Path to Q&A results JSON |
+| `--output Y` | Path for output suggestions |
+| `--taxonomy Z` | Path to taxonomy YAML (default: _design/taxonomy.yaml) |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  STEP 1: INDEX (one time)                                       │
+│  PDF files → chunks + embeddings → Azure Search                  │
+└─────────────────────────────────────────────────────────────────┘
+              ↓                           ↓                          ↓
+┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
+│  STEP 2a: QUERY     │    │  STEP 2b: CLASSIFY   │    │  STEP 2c: SUGGEST   │
+│  Free-form Q&A      │    │  Taxonomy Q&A        │    │  Taxonomy Improve   │
+│                     │    │                      │    │                      │
+│  query.py           │    │  classify.py          │    │  suggest_taxonomy   │
+│                     │    │                      │    │                      │
+│  → pdf-qa-chunks    │    │  → adaptation-        │    │  → suggestions.json │
+│    index            │    │    passages index    │    │                      │
+└─────────────────────┘    └─────────────────────┘    └─────────────────────┘
+```
+
+### Index Structure
+
+**query.py** uses `pdf-qa-chunks` index with:
+- `doc_id` - document filename
+- `text` - chunk content
+- `embedding` - vector embedding
+- `title`, `source_path`, `chunk_index`
+
+**classify.py** uses `adaptation-passages` index with:
+- `source_doc_id` - document reference
+- `text` - passage content
+- `category`, `subcategory` - taxonomy classification
+- `text_vector` - vector embedding
+
+---
+
+## Metadata Tracking
+
+Both workflows track document status in `results/document_index.json`:
+
+```json
+{
+  "query_index": {
+    "index_name": "pdf-qa-chunks",
+    "updated_at": "2026-04-03T10:00:00",
+    "documents": {
+      "Danone_annual_report_2024.pdf": {
+        "indexed": true,
+        "chunk_count": 8,
+        "char_count": 9376,
+        "has_ocr": false
+      }
+    }
+  },
+  "classify_index": {
+    "index_name": "adaptation-passages",
+    "updated_at": "2026-04-03T10:00:00",
+    "documents": {
+      "Danone_annual_report_2024.pdf": {
+        "classified": true,
+        "passages_count": 42
+      }
+    }
+  }
+}
+```
 
 ---
 

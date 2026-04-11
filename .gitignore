@@ -18,6 +18,7 @@ documents_original_backup/
 
 # Old output files
 output/
+results/
 
 # Credentials file (MUST NOT be committed — keys must be in .env)
 google_search/config.yaml

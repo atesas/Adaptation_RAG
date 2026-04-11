@@ -18,6 +18,10 @@ AZURE_SEARCH_KEY       = os.environ.get("AZURE_SEARCH_KEY", "")
 AZURE_OPENAI_ENDPOINT  = os.environ.get("AZURE_OPENAI_ENDPOINT", "")
 AZURE_OPENAI_KEY       = os.environ.get("AZURE_OPENAI_KEY", "")
 
+# ── Azure Document Intelligence (OCR) ────────────────────────────────────────
+AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT = os.environ.get("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT", "")
+AZURE_DOCUMENT_INTELLIGENCE_KEY      = os.environ.get("AZURE_DOCUMENT_INTELLIGENCE_KEY", "")
+
 # ── Model deployments ─────────────────────────────────────────────────────────
 EMBEDDING_DEPLOYMENT   = os.environ.get("EMBEDDING_DEPLOYMENT", "text-embedding-3-large")
 GPT4O_DEPLOYMENT       = os.environ.get("GPT4O_DEPLOYMENT", "gpt-4o")
@@ -84,4 +88,16 @@ def require_credentials() -> None:
             "Missing required environment variables:\n"
             + "\n".join(f"  {m}" for m in missing)
             + "\n\nCopy .env.example to .env and fill in the values."
+        )
+
+
+def require_ocr_credentials() -> None:
+    """
+    Call this before making Document Intelligence OCR calls.
+    """
+    if not AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT or not AZURE_DOCUMENT_INTELLIGENCE_KEY:
+        raise EnvironmentError(
+            "Missing Document Intelligence credentials. Add to .env:\n"
+            + "  AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=https://your-resource.cognitiveservices.azure.com/\n"
+            + "  AZURE_DOCUMENT_INTELLIGENCE_KEY=your-key\n"
         )
